@@ -9,7 +9,7 @@
 
 			<form class="form-header" action="{% url 'query' %}" method="GET">
 				<input id="primary-search" class="form-control rounded-end-0" type="text" name="q" value="{{ request.GET.q }}"
-					placeholder="{% trans 'Search All... #course, #program, #Quiz, #News, #Events' %}" required />
+					placeholder="{% trans 'Buscar todo... #Materias, #Carreras, #Noticias, #Eventos' %}" required />
 				<button class="btn btn-dark rounded-start-0" type="submit">
 					<i class="fas fa-search"></i>
 				</button>
@@ -26,24 +26,24 @@
 						</div>
 	
 						<p class="small text-muted text-center mb-0">
-							{% trans 'Last login:' %} {{ request.user.last_login|date }}</p>
+							{% trans 'Última sesión:' %} {{ request.user.last_login|date }}</p>
 					</div>
 					<hr>
 
 					{% if request.user.is_lecturer or request.user.is_student %}
-					<a class="dropdown-item" href="{% url 'user_course_list' %}"><i class="fas fa-book me-2"></i>{% trans 'My Courses' %}</a>
+					<a class="dropdown-item" href="{% url 'user_course_list' %}"><i class="fas fa-book me-2"></i>{% trans 'Mis Materias' %}</a>
 					{% endif %}
 
 					{% if request.user.is_superuser %}
-					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Admin Panel' %}</a>
+					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Panel Admin' %}</a>
 					{% endif %}
 
-					<a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>{% trans 'Profile' %}</a>
-					<a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-cog me-2"></i>{% trans 'Setting' %}</a>
+					<a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>{% trans 'Perfil' %}</a>
+					<a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-cog me-2"></i>{% trans 'Ajustes' %}</a>
 					<hr>
 					<div style="display: flex; justify-content: center; align-items: center;">
 						<a class="btn btn-secondary" href="{% url 'logout' %}">
-							<i class="fas fa-sign-out-alt"></i> {% trans 'Signout' %}
+							<i class="fas fa-sign-out-alt"></i> {% trans 'Cerrar Sesión' %}
 						</a>
 					</div>
 				</div>

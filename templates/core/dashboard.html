@@ -10,7 +10,7 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+      <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
       <li class="breadcrumb-item active" aria-current="page">{% trans 'Dashboard' %}</li>
     </ol>
 </nav>
@@ -39,7 +39,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-aqua"></i></h3>
 			<div class="text-right">
-				{% trans 'Students' %}
+				{% trans 'Estudiantes' %}
 				<h2>{{ student_count }}</h2>
 			</div>
 		</div>
@@ -48,7 +48,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-orange"></i></h3>
 			<div class="text-right">
-				{% trans 'Lecturers' %}
+				{% trans 'Profesores' %}
 				<h2>{{ lecturer_count }}</h2>
 			</div>
 		</div>
@@ -57,7 +57,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-red"></i></h3>
 			<div class="text-right">
-				{% trans 'Administrators' %}
+				{% trans 'Administradores' %}
 				<h2>{{ superuser_count }}</h2>
 			</div>
 		</div>
@@ -66,7 +66,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-purple"></i></h3>
 			<div class="text-right">
-				{% trans 'Lab Assistance' %}
+				{% trans 'Laboratoristas' %}
 				<h2>500</h2>
 			</div>
 		</div>
@@ -75,7 +75,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-red"></i></h3>
 			<div class="text-right">
-				{% trans 'Librarians' %}
+				{% trans 'Bedeles' %}
 				<h2>300</h2>
 			</div>
 		</div>
@@ -84,7 +84,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-purple"></i></h3>
 			<div class="text-right">
-				{% trans 'Supervisors' %}
+				{% trans 'Coordinadores' %}
 				<h2>660</h2>
 			</div>
 		</div>
@@ -93,7 +93,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-orange"></i></h3>
 			<div class="text-right pl-2">
-				{% trans 'Office Assistance' %}
+				{% trans 'Gestión Estudiantil' %}
 				<h2>1,700</h2>
 			</div>
 		</div>
@@ -102,7 +102,7 @@
 		<div class="card-count p-3">
 			<h3><i class="fas fa-users bg-light-aqua"></i></h3>
 			<div class="text-right">
-				{% trans 'Others' %}
+				{% trans 'Otros' %}
 				<h2>1,250</h2>
 			</div>
 		</div>
@@ -130,12 +130,12 @@
 	</div>
 	<div class="col-md-6 p-2">
 		<div class="card w-100 h-100 p-3">
-			<h5>{% trans 'Latest activities' %}</h5>
+			<h5>{% trans 'Últimas Actividades' %}</h5>
 			<ul class="ps-2 small">
 				{% for log in logs %}
 				<li>{{ log.message }} <span class="text-muted">- {{ log.created_at }}</span></li>
 				{% empty %}
-				<li>{% trans 'No recent activity' %}</li>
+				<li>{% trans 'Sin Actividad Reciente' %}</li>
 				{% endfor %}
 			</ul>
 		</div>
@@ -143,7 +143,7 @@
 </div>
 <br>
 <div class="bg-white p-3">
-	<h5 class="border-bottom pb-2">{% trans 'School Demographics' %}</h5>
+	<h5 class="border-bottom pb-2">{% trans 'Demografías' %}</h5>
 	<div class="row">
 		<div class="col-md-4">
 			<i class="fas fa-expand-alt"></i>
