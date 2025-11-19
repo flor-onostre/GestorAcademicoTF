@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 {% load crispy_forms_tags %}
 {% load static %}
 
@@ -8,9 +8,9 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'session_list' %}">{% trans 'Session List' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Session Form' %}</li>
+      <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'session_list' %}">{% trans 'Lista de Sesiones' %}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de Sesión' %}</li>
     </ol>
 </nav>
 
@@ -19,11 +19,11 @@
 <div class="row">
     <div class="col-md-6 mx-auto">
         <div class="card pb-3">
-            <p class="form-title">{% trans 'Session Add & update Form' %}</p>
+            <p class="form-title">{% trans 'Formulario para agregar o actualizar Sesió' %}</p>
             <div class="container"><br>
                 <form action="" method="POST">{% csrf_token %}
                     {{ form|crispy }}
-                    <input class="btn btn-primary" type="submit" value="{% trans 'Save' %}">
+                    <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
                 </form>
             </div>
         </div>

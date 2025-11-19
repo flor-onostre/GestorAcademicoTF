@@ -35,13 +35,13 @@ class Program(models.Model):
 
 @receiver(post_save, sender=Program)
 def log_program_save(sender, instance, created, **kwargs):
-    verb = "created" if created else "updated"
-    ActivityLog.objects.create(message=_(f"The program '{instance}' has been {verb}."))
+    verb = "creada" if created else "actualizada"
+    ActivityLog.objects.create(message=_(f"La carrera '{instance}' ha sido {verb}."))
 
 
 @receiver(post_delete, sender=Program)
 def log_program_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(message=_(f"The program '{instance}' has been deleted."))
+    ActivityLog.objects.create(message=_(f"La carrera '{instance}' ha sido eliminada."))
 
 
 class CourseManager(models.Manager):
@@ -93,13 +93,13 @@ def course_pre_save_receiver(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Course)
 def log_course_save(sender, instance, created, **kwargs):
-    verb = "created" if created else "updated"
-    ActivityLog.objects.create(message=_(f"The course '{instance}' has been {verb}."))
+    verb = "creada" if created else "actualizada"
+    ActivityLog.objects.create(message=_(f"La materia '{instance}' ha sido {verb}."))
 
 
 @receiver(post_delete, sender=Course)
 def log_course_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(message=_(f"The course '{instance}' has been deleted."))
+    ActivityLog.objects.create(message=_(f"La materia '{instance}' ha sido eliminada."))
 
 
 class CourseAllocation(models.Model):
@@ -126,7 +126,7 @@ class Upload(models.Model):
     file = models.FileField(
         upload_to="course_files/",
         help_text=_(
-            "Valid Files: pdf, docx, doc, xls, xlsx, ppt, pptx, zip, rar, 7zip"
+            "Archivos válidos: pdf, docx, doc, xls, xlsx, ppt, pptx, zip, rar, 7zip"
         ),
         validators=[
             FileExtensionValidator(
@@ -174,11 +174,11 @@ class Upload(models.Model):
 def log_upload_save(sender, instance, created, **kwargs):
     if created:
         message = _(
-            f"The file '{instance.title}' has been uploaded to the course '{instance.course}'."
+            f"Se subió el archivo '{instance.title}' a la materia '{instance.course}'."
         )
     else:
         message = _(
-            f"The file '{instance.title}' of the course '{instance.course}' has been updated."
+            f"Se actualizó el archivo '{instance.title}' de la materia '{instance.course}'."
         )
     ActivityLog.objects.create(message=message)
 
@@ -187,7 +187,7 @@ def log_upload_save(sender, instance, created, **kwargs):
 def log_upload_delete(sender, instance, **kwargs):
     ActivityLog.objects.create(
         message=_(
-            f"The file '{instance.title}' of the course '{instance.course}' has been deleted."
+            f"Se eliminó el archivo '{instance.title}' de la materia '{instance.course}'."
         )
     )
 
@@ -198,7 +198,7 @@ class UploadVideo(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     video = models.FileField(
         upload_to="course_videos/",
-        help_text=_("Valid video formats: mp4, mkv, wmv, 3gp, f4v, avi, mp3"),
+        help_text=_("Formatos de video válidos: mp4, mkv, wmv, 3gp, f4v, avi, mp3"),
         validators=[
             FileExtensionValidator(["mp4", "mkv", "wmv", "3gp", "f4v", "avi", "mp3"])
         ],
@@ -229,11 +229,11 @@ def video_pre_save_receiver(sender, instance, **kwargs):
 def log_uploadvideo_save(sender, instance, created, **kwargs):
     if created:
         message = _(
-            f"The video '{instance.title}' has been uploaded to the course '{instance.course}'."
+            f"Se subió el video '{instance.title}' a la materia '{instance.course}'."
         )
     else:
         message = _(
-            f"The video '{instance.title}' of the course '{instance.course}' has been updated."
+            f"Se actualizó el video '{instance.title}' de la materia '{instance.course}'."
         )
     ActivityLog.objects.create(message=message)
 
@@ -242,7 +242,7 @@ def log_uploadvideo_save(sender, instance, created, **kwargs):
 def log_uploadvideo_delete(sender, instance, **kwargs):
     ActivityLog.objects.create(
         message=_(
-            f"The video '{instance.title}' of the course '{instance.course}' has been deleted."
+            f"Se eliminó el video '{instance.title}' de la materia '{instance.course}'."
         )
     )
 

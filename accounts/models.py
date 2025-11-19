@@ -11,31 +11,31 @@ from .validators import ASCIIUsernameValidator
 
 
 # LEVEL_COURSE = "Level course"
-BACHELOR_DEGREE = _("Bachelor")
-MASTER_DEGREE = _("Master")
+BACHELOR_DEGREE = _("Tecnicatura")
+MASTER_DEGREE = _("Licenciatura")
 
 LEVEL = (
     # (LEVEL_COURSE, "Level course"),
-    (BACHELOR_DEGREE, _("Bachelor Degree")),
-    (MASTER_DEGREE, _("Master Degree")),
+    (BACHELOR_DEGREE, _("Título de Tecnicatura")),
+    (MASTER_DEGREE, _("Título de Licenciatura")),
 )
 
-FATHER = _("Father")
-MOTHER = _("Mother")
-BROTHER = _("Brother")
-SISTER = _("Sister")
-GRAND_MOTHER = _("Grand mother")
-GRAND_FATHER = _("Grand father")
-OTHER = _("Other")
+FATHER = _("Padre")
+MOTHER = _("Madre")
+BROTHER = _("Hermano")
+SISTER = _("Hermana")
+GRAND_MOTHER = _("Abuela")
+GRAND_FATHER = _("Abuelo")
+OTHER = _("Otro")
 
 RELATION_SHIP = (
-    (FATHER, _("Father")),
-    (MOTHER, _("Mother")),
-    (BROTHER, _("Brother")),
-    (SISTER, _("Sister")),
-    (GRAND_MOTHER, _("Grand mother")),
-    (GRAND_FATHER, _("Grand father")),
-    (OTHER, _("Other")),
+    (FATHER, _("Padre")),
+    (MOTHER, _("Madre")),
+    (BROTHER, _("Hermano")),
+    (SISTER, _("Hermana")),
+    (GRAND_MOTHER, _("Abuela")),
+    (GRAND_FATHER, _("Abuelo")),
+    (OTHER, _("Otro")),
 )
 
 
@@ -64,7 +64,7 @@ class CustomUserManager(UserManager):
         return self.model.objects.filter(is_superuser=True).count()
 
 
-GENDERS = ((_("M"), _("Male")), (_("F"), _("Female")))
+GENDERS = ((_("M"), _("Masculino")), (_("F"), _("Femenino")))
 
 
 class User(AbstractUser):
@@ -100,13 +100,13 @@ class User(AbstractUser):
     @property
     def get_user_role(self):
         if self.is_superuser:
-            role = _("Admin")
+            role = _("Administrador")
         elif self.is_student:
-            role = _("Student")
+            role = _("Estudiante")
         elif self.is_lecturer:
-            role = _("Lecturer")
+            role = _("Docente")
         elif self.is_parent:
-            role = _("Parent")
+            role = _("Familiar")
 
         return role
 

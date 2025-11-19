@@ -42,16 +42,16 @@ class SemesterForm(forms.ModelForm):
                 "class": "browser-default custom-select",
             },
         ),
-        label="semester",
+        label="Cautrimestre",
     )
     is_current_semester = forms.CharField(
         widget=forms.Select(
-            choices=((True, "Yes"), (False, "No")),
+            choices=((True, "Sí"), (False, "No")),
             attrs={
                 "class": "browser-default custom-select",
             },
         ),
-        label="is current semester ?",
+        label="¿Es el cuatrimestre actual?",
     )
     session = forms.ModelChoiceField(
         queryset=Session.objects.all(),
@@ -61,6 +61,7 @@ class SemesterForm(forms.ModelForm):
             }
         ),
         required=True,
+        label="Ciclo lectivo",
     )
 
     next_semester_begins = forms.DateTimeField(
@@ -71,6 +72,7 @@ class SemesterForm(forms.ModelForm):
             }
         ),
         required=True,
+        label="Próximo cuatrimestre comienza",
     )
 
     class Meta:

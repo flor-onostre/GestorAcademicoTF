@@ -16,9 +16,8 @@ from reportlab.platypus import (
     Image,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    # TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
-
-# from reportlab.platypus.tables import Table
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
@@ -33,14 +32,14 @@ CM = 2.54
 
 
 # ########################################################
-# Score Add & Add for
+# Carga de notas
 # ########################################################
 @login_required
 @lecturer_required
 def add_score(request):
     """
-    Shows a page where a lecturer will select a course allocated
-    to him for score entry. in a specific semester and session
+    Pantalla para que un docente seleccione la materia asignada
+    en un cuatrimestre y ciclo lectivo específicos, para cargar notas.
     """
     current_session = Session.objects.filter(is_current_session=True).first()
     current_semester = Semester.objects.filter(
@@ -48,12 +47,9 @@ def add_score(request):
     ).first()
 
     if not current_session or not current_semester:
-        messages.error(request, "No active semester found.")
+        messages.error(request, "No se encontró un cuatrimestre activo.")
         return render(request, "result/add_score.html")
 
-    # semester = Course.objects.filter(
-    # allocated_course__lecturer__pk=request.user.id,
-    # semester=current_semester)
     courses = Course.objects.filter(
         allocated_course__lecturer__pk=request.user.id
     ).filter(semester=current_semester)
@@ -69,8 +65,8 @@ def add_score(request):
 @lecturer_required
 def add_score_for(request, id):
     """
-    Shows a page where a lecturer will add score for students that
-    are taking courses allocated to him in a specific semester and session
+    Pantalla para que un docente cargue notas para estudiantes
+    de una materia asignada, en cuatrimestre y ciclo lectivo actuales.
     """
     current_session = Session.objects.get(is_current_session=True)
     current_semester = get_object_or_404(
@@ -81,14 +77,7 @@ def add_score_for(request, id):
             allocated_course__lecturer__pk=request.user.id
         ).filter(semester=current_semester)
         course = Course.objects.get(pk=id)
-        # myclass = Class.objects.get(lecturer__pk=request.user.id)
-        # myclass = get_object_or_404(Class, lecturer__pk=request.user.id)
 
-        # students = TakenCourse.objects.filter(
-        # course__allocated_course__lecturer__pk=request.user.id).filter(
-        #  course__id=id).filter(
-        #  student__allocated_student__lecturer__pk=request.user.id).filter(
-        #  course__semester=current_semester)
         students = (
             TakenCourse.objects.filter(
                 course__allocated_course__lecturer__pk=request.user.id
@@ -97,10 +86,9 @@ def add_score_for(request, id):
             .filter(course__semester=current_semester)
         )
         context = {
-            "title": "Submit Score",
+            "title": "Cargar notas",
             "courses": courses,
             "course": course,
-            # "myclass": myclass,
             "students": students,
             "current_session": current_session,
             "current_semester": current_semester,
@@ -112,54 +100,43 @@ def add_score_for(request, id):
         data = request.POST.copy()
         data.pop("csrfmiddlewaretoken", None)  # remove csrf_token
         for key in data.keys():
-            ids = ids + (
-                str(key),
-            )  # gather all the all students id (i.e the keys) in a tuple
-        for s in range(
-            0, len(ids)
-        ):  # iterate over the list of student ids gathered above
+            ids = ids + (str(key),)  # ids de TakenCourse
+
+        for s in range(0, len(ids)):
             student = TakenCourse.objects.get(id=ids[s])
-            # print(student)
-            # print(student.student)
-            # print(student.student.program.id)
+
             courses = (
                 Course.objects.filter(level=student.student.level)
                 .filter(program__pk=student.student.program.id)
                 .filter(semester=current_semester)
-            )  # all courses of a specific level in current semester
+            )
+
             total_credit_in_semester = 0
             for i in courses:
                 if i == courses.count():
                     break
                 total_credit_in_semester += int(i.credit)
-            score = data.getlist(
-                ids[s]
-            )  # get list of score for current student in the loop
-            assignment = score[
-                0
-            ]  # subscript the list to get the fisrt value > ca score
-            mid_exam = score[1]  # do the same for exam score
+
+            score = data.getlist(ids[s])  # [assignment, mid_exam, quiz, attendance, final_exam]
+            assignment = score[0]
+            mid_exam = score[1]
             quiz = score[2]
             attendance = score[3]
             final_exam = score[4]
-            obj = TakenCourse.objects.get(pk=ids[s])  # get the current student data
-            obj.assignment = assignment  # set current student assignment score
-            obj.mid_exam = mid_exam  # set current student mid_exam score
-            obj.quiz = quiz  # set current student quiz score
-            obj.attendance = attendance  # set current student attendance score
-            obj.final_exam = final_exam  # set current student final_exam score
+
+            obj = TakenCourse.objects.get(pk=ids[s])
+            obj.assignment = assignment
+            obj.mid_exam = mid_exam
+            obj.quiz = quiz
+            obj.attendance = attendance
+            obj.final_exam = final_exam
 
             obj.total = obj.get_total()
             obj.grade = obj.get_grade()
-
-            # obj.total = obj.get_total(assignment, mid_exam, quiz, attendance, final_exam)
-            # obj.grade = obj.get_grade(assignment, mid_exam, quiz, attendance, final_exam)
-
             obj.point = obj.get_point()
             obj.comment = obj.get_comment()
-            # obj.carry_over(obj.grade)
-            # obj.is_repeating()
             obj.save()
+
             gpa = obj.calculate_gpa()
             cgpa = obj.calculate_cgpa()
 
@@ -182,23 +159,14 @@ def add_score_for(request, id):
                     level=student.student.level,
                 )
 
-            # try:
-            #     a = Result.objects.get(student=student.student,
-            # semester=current_semester, level=student.student.level)
-            #     a.gpa = gpa
-            #     a.cgpa = cgpa
-            #     a.save()
-            # except:
-            #     Result.objects.get_or_create(student=student.student, gpa=gpa,
-            # semester=current_semester, level=student.student.level)
-
-        messages.success(request, "Successfully Recorded! ")
+        messages.success(request, "¡Registro de notas realizado correctamente!")
         return HttpResponseRedirect(reverse_lazy("add_score_for", kwargs={"id": id}))
     return HttpResponseRedirect(reverse_lazy("add_score_for", kwargs={"id": id}))
 
 
 # ########################################################
-
+# Resultados (estudiante)
+# ########################################################
 
 @login_required
 @student_required
@@ -207,14 +175,11 @@ def grade_result(request):
     courses = TakenCourse.objects.filter(student__student__pk=request.user.id).filter(
         course__level=student.level
     )
-    # total_credit_in_semester = 0
     results = Result.objects.filter(student__student__pk=request.user.id)
 
     result_set = set()
-
     for result in results:
         result_set.add(result.session)
-
     sorted_result = sorted(result_set)
 
     total_first_semester_credit = 0
@@ -226,8 +191,6 @@ def grade_result(request):
             total_sec_semester_credit += int(i.course.credit)
 
     previousCGPA = 0
-    # previousLEVEL = 0
-    # calculate_cgpa
     for i in results:
         previousLEVEL = i.level
         try:
@@ -274,6 +237,10 @@ def assessment_result(request):
     return render(request, "result/assessment_results.html", context)
 
 
+# ########################################################
+# Acta de resultados en PDF (docente)
+# ########################################################
+
 @login_required
 @lecturer_required
 def result_sheet_pdf_view(request, id):
@@ -281,15 +248,18 @@ def result_sheet_pdf_view(request, id):
     current_session = Session.objects.get(is_current_session=True)
     result = TakenCourse.objects.filter(course__pk=id)
     course = get_object_or_404(Course, id=id)
+
+    # Cuentas (comentarios internos siguen siendo PASS/FAIL/PROMOTED)
     no_of_pass = TakenCourse.objects.filter(course__pk=id, comment="PASS").count()
     no_of_fail = TakenCourse.objects.filter(course__pk=id, comment="FAIL").count()
+
     fname = (
         str(current_semester)
-        + "_semester_"
+        + "_cuatrimestre_"
         + str(current_session)
         + "_"
         + str(course)
-        + "_resultSheet.pdf"
+        + "_acta_resultados.pdf"
     )
     fname = fname.replace("/", "-")
     flocation = settings.MEDIA_ROOT + "/result_sheet/" + fname
@@ -302,32 +272,17 @@ def result_sheet_pdf_view(request, id):
         bottomMargin=0,
     )
     styles = getSampleStyleSheet()
-    styles.add(
-        ParagraphStyle(name="ParagraphTitle", fontSize=11, fontName="FreeSansBold")
-    )
+    styles.add(ParagraphStyle(name="ParagraphTitle", fontSize=11, fontName="FreeSansBold"))
     Story = [Spacer(1, 0.2)]
-    style = styles["Normal"]
 
-    # picture = request.user.picture
-    # l_pic = Image(picture, 1*inch, 1*inch)
-    # l_pic.__setattr__("_offs_x", 200)
-    # l_pic.__setattr__("_offs_y", -130)
-    # Story.append(l_pic)
-
-    # logo = settings.MEDIA_ROOT + "/logo/logo-mini.png"
-    # im_logo = Image(logo, 1*inch, 1*inch)
-    # im_logo.__setattr__("_offs_x", -218)
-    # im_logo.__setattr__("_offs_y", -60)
-    # Story.append(im_logo)
-
-    print("\nsettings.MEDIA_ROOT", settings.MEDIA_ROOT)
-    print("\nsettings.STATICFILES_DIRS[0]", settings.STATICFILES_DIRS[0])
+    # Logo
     logo = settings.STATICFILES_DIRS[0] + "/img/brand.png"
     im = Image(logo, 1 * inch, 1 * inch)
     im.__setattr__("_offs_x", -200)
     im.__setattr__("_offs_y", -45)
     Story.append(im)
 
+    # Título
     style = getSampleStyleSheet()
     normal = style["Normal"]
     normal.alignment = TA_CENTER
@@ -337,47 +292,45 @@ def result_sheet_pdf_view(request, id):
     title = (
         "<b> "
         + str(current_semester)
-        + " Semester "
+        + " Cuatrimestre "
         + str(current_session)
-        + " Result Sheet</b>"
+        + " - Acta de Resultados</b>"
     )
     title = Paragraph(title.upper(), normal)
     Story.append(title)
     Story.append(Spacer(1, 0.1 * inch))
 
-    style = getSampleStyleSheet()
+    # Docente
     normal = style["Normal"]
     normal.alignment = TA_CENTER
     normal.fontName = "Helvetica"
     normal.fontSize = 10
     normal.leading = 15
-    title = "<b>Course lecturer: " + request.user.get_full_name + "</b>"
+    title = "<b>Docente a cargo: " + request.user.get_full_name + "</b>"
     title = Paragraph(title.upper(), normal)
     Story.append(title)
     Story.append(Spacer(1, 0.1 * inch))
 
+    # Nivel
     normal = style["Normal"]
     normal.alignment = TA_CENTER
     normal.fontName = "Helvetica"
     normal.fontSize = 10
     normal.leading = 15
     level = result.filter(course_id=id).first()
-    title = "<b>Level: </b>" + str(level.course.level)
+    title = "<b>Nivel: </b>" + str(level.course.level)
     title = Paragraph(title.upper(), normal)
     Story.append(title)
     Story.append(Spacer(1, 0.6 * inch))
 
-    elements = []
-    count = 0
-    header = [("S/N", "ID NO.", "FULL NAME", "TOTAL", "GRADE", "POINT", "COMMENT")]
-
+    # Encabezado de tabla
+    header = [("N°", "ID", "NOMBRE COMPLETO", "TOTAL", "NOTA", "PUNTOS", "ESTADO")]
     table_header = Table(header, [inch], [0.5 * inch])
     table_header.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), colors.black),
-                ("TEXTCOLOR", (1, 0), (-1, -1), colors.white),
-                ("TEXTCOLOR", (0, 0), (0, 0), colors.cyan),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("BOX", (0, 0), (-1, -1), 1, colors.black),
@@ -386,24 +339,26 @@ def result_sheet_pdf_view(request, id):
     )
     Story.append(table_header)
 
+    # Filas
+    count = 0
     for student in result:
         data = [
             (
                 count + 1,
                 student.student.student.username.upper(),
-                Paragraph(
-                    student.student.student.get_full_name.capitalize(), styles["Normal"]
-                ),
+                Paragraph(student.student.student.get_full_name.capitalize(), styles["Normal"]),
                 student.total,
-                student.grade,
+                student.grade,   # ahora es "0".."10"
                 student.point,
-                student.comment,
+                # Mostrar en español: viene del choice (Promocionado/Aprobado/Reprobado)
+                student.get_comment_display(),
             )
         ]
-        color = colors.black
-        if student.grade == "F":
-            color = colors.red
-        count += 1
+        # Rojo si la nota es < 4
+        try:
+            is_fail = int(student.grade) < 4
+        except Exception:
+            is_fail = False
 
         t_body = Table(data, colWidths=[inch])
         t_body.setStyle(
@@ -411,26 +366,23 @@ def result_sheet_pdf_view(request, id):
                 [
                     ("INNERGRID", (0, 0), (-1, -1), 0.05, colors.black),
                     ("BOX", (0, 0), (-1, -1), 0.1, colors.black),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.red if is_fail else colors.black),
                 ]
             )
         )
         Story.append(t_body)
+        count += 1
 
     Story.append(Spacer(1, 1 * inch))
-    style_right = ParagraphStyle(
-        name="right", parent=styles["Normal"], alignment=TA_RIGHT
-    )
+    style_right = ParagraphStyle(name="right", parent=styles["Normal"], alignment=TA_RIGHT)
     tbl_data = [
         [
-            Paragraph("<b>Date:</b>_____________________________", styles["Normal"]),
-            Paragraph("<b>No. of PASS:</b> " + str(no_of_pass), style_right),
+            Paragraph("<b>Fecha:</b> _____________________________", styles["Normal"]),
+            Paragraph("<b>N.º de Aprobados:</b> " + str(no_of_pass), style_right),
         ],
         [
-            Paragraph(
-                "<b>Siganture / Stamp:</b> _____________________________",
-                styles["Normal"],
-            ),
-            Paragraph("<b>No. of FAIL: </b>" + str(no_of_fail), style_right),
+            Paragraph("<b>Firma / Sello:</b> _____________________________", styles["Normal"]),
+            Paragraph("<b>N.º de Reprobados:</b> " + str(no_of_fail), style_right),
         ],
     ]
     tbl = Table(tbl_data)
@@ -446,6 +398,10 @@ def result_sheet_pdf_view(request, id):
     return response
 
 
+# ########################################################
+# Formulario de inscripción (PDF estudiante)
+# ########################################################
+
 @login_required
 @student_required
 def course_registration_form(request):
@@ -453,9 +409,8 @@ def course_registration_form(request):
     courses = TakenCourse.objects.filter(student__student__id=request.user.id)
     fname = request.user.username + ".pdf"
     fname = fname.replace("/", "-")
-    # flocation = '/tmp/' + fname
-    # print(MEDIA_ROOT + "\\" + fname)
     flocation = settings.MEDIA_ROOT + "/registration_form/" + fname
+
     doc = SimpleDocTemplate(
         flocation, rightMargin=15, leftMargin=15, topMargin=0, bottomMargin=0
     )
@@ -463,93 +418,69 @@ def course_registration_form(request):
 
     Story = [Spacer(1, 0.5)]
     Story.append(Spacer(1, 0.4 * inch))
-    style = styles["Normal"]
 
+    # Encabezados institucionales (visibles)
     style = getSampleStyleSheet()
     normal = style["Normal"]
     normal.alignment = TA_CENTER
     normal.fontName = "Helvetica"
     normal.fontSize = 12
     normal.leading = 18
-    title = "<b>EZOD UNIVERSITY OF TECHNOLOGY, ADAMA</b>"  # TODO: Make this dynamic
-    title = Paragraph(title.upper(), normal)
-    Story.append(title)
-    style = getSampleStyleSheet()
+    title = "<b>UNIVERSIDAD TECNOLÓGICA EZOD, ADAMA</b>"  # TODO: dinamizar si corresponde
+    Story.append(Paragraph(title.upper(), normal))
 
     school = style["Normal"]
     school.alignment = TA_CENTER
     school.fontName = "Helvetica"
     school.fontSize = 10
     school.leading = 18
-    school_title = (
-        "<b>SCHOOL OF ELECTRICAL ENGINEERING & COMPUTING</b>"  # TODO: Make this dynamic
-    )
-    school_title = Paragraph(school_title.upper(), school)
-    Story.append(school_title)
+    school_title = "<b>FACULTAD DE INGENIERÍA ELÉCTRICA Y COMPUTACIÓN</b>"
+    Story.append(Paragraph(school_title.upper(), school))
 
-    style = getSampleStyleSheet()
     Story.append(Spacer(1, 0.1 * inch))
     department = style["Normal"]
     department.alignment = TA_CENTER
     department.fontName = "Helvetica"
     department.fontSize = 9
     department.leading = 18
-    department_title = (
-        "<b>DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING</b>"  # TODO: Make this dynamic
-    )
-    department_title = Paragraph(department_title, department)
-    Story.append(department_title)
+    department_title = "<b>DEPARTAMENTO DE CIENCIAS DE LA COMPUTACIÓN E INGENIERÍA</b>"
+    Story.append(Paragraph(department_title, department))
     Story.append(Spacer(1, 0.3 * inch))
 
-    title = "<b><u>STUDENT COURSE REGISTRATION FORM</u></b>"
-    title = Paragraph(title.upper(), normal)
-    Story.append(title)
+    title = "<b><u>FORMULARIO DE INSCRIPCIÓN A MATERIAS</u></b>"
+    Story.append(Paragraph(title.upper(), normal))
+
     student = Student.objects.get(student__pk=request.user.id)
 
     tbl_data = [
+        [Paragraph("<b>N.º de registro: " + request.user.username.upper() + "</b>", styles["Normal"])],
+        [Paragraph("<b>Nombre: " + request.user.get_full_name.upper() + "</b>", styles["Normal"])],
         [
-            Paragraph(
-                "<b>Registration Number : " + request.user.username.upper() + "</b>",
-                styles["Normal"],
-            )
-        ],
-        [
-            Paragraph(
-                "<b>Name : " + request.user.get_full_name.upper() + "</b>",
-                styles["Normal"],
-            )
-        ],
-        [
-            Paragraph(
-                "<b>Session : " + current_session.session.upper() + "</b>",
-                styles["Normal"],
-            ),
-            Paragraph("<b>Level: " + student.level + "</b>", styles["Normal"]),
+            Paragraph("<b>Ciclo lectivo: " + current_session.session.upper() + "</b>", styles["Normal"]),
+            Paragraph("<b>Nivel: " + student.level + "</b>", styles["Normal"]),
         ],
     ]
     tbl = Table(tbl_data)
     Story.append(tbl)
     Story.append(Spacer(1, 0.6 * inch))
 
-    style = getSampleStyleSheet()
+    # PRIMER CUATRIMESTRE
     semester = style["Normal"]
     semester.alignment = TA_LEFT
     semester.fontName = "Helvetica"
     semester.fontSize = 9
     semester.leading = 18
-    semester_title = "<b>FIRST SEMESTER</b>"
-    semester_title = Paragraph(semester_title, semester)
-    Story.append(semester_title)
+    semester_title = "<b>PRIMER CUATRIMESTRE</b>"
+    Story.append(Paragraph(semester_title, semester))
 
-    # FIRST SEMESTER
     count = 0
     header = [
         (
-            "S/No",
-            "Course Code",
-            "Course Title",
-            "Unit",
-            Paragraph("Name, Siganture of course lecturer & Date", style["Normal"]),
+            "N°",
+            "Código",
+            "Materia",
+            "Créditos",
+            Paragraph("Nombre y firma del docente & Fecha", style["Normal"]),
         )
     ]
     table_header = Table(header, 1 * [1.4 * inch], 1 * [0.5 * inch])
@@ -604,41 +535,32 @@ def course_registration_form(request):
             )
             Story.append(table_body)
 
-    style = getSampleStyleSheet()
     semester = style["Normal"]
     semester.alignment = TA_LEFT
     semester.fontName = "Helvetica"
     semester.fontSize = 8
     semester.leading = 18
-    semester_title = (
-        "<b>Total Second First Credit : " + str(first_semester_unit) + "</b>"
-    )
-    semester_title = Paragraph(semester_title, semester)
-    Story.append(semester_title)
+    semester_title = "<b>Total de créditos (1.º cuatrimestre): " + str(first_semester_unit) + "</b>"
+    Story.append(Paragraph(semester_title, semester))
 
-    # FIRST SEMESTER ENDS HERE
+    # SEGUNDO CUATRIMESTRE
     Story.append(Spacer(1, 0.6 * inch))
-
-    style = getSampleStyleSheet()
     semester = style["Normal"]
     semester.alignment = TA_LEFT
     semester.fontName = "Helvetica"
     semester.fontSize = 9
     semester.leading = 18
-    semester_title = "<b>SECOND SEMESTER</b>"
-    semester_title = Paragraph(semester_title, semester)
-    Story.append(semester_title)
-    # SECOND SEMESTER
+    semester_title = "<b>SEGUNDO CUATRIMESTRE</b>"
+    Story.append(Paragraph(semester_title, semester))
+
     count = 0
     header = [
         (
-            "S/No",
-            "Course Code",
-            "Course Title",
-            "Unit",
-            Paragraph(
-                "<b>Name, Signature of course lecturer & Date</b>", style["Normal"]
-            ),
+            "N°",
+            "Código",
+            "Materia",
+            "Créditos",
+            Paragraph("<b>Nombre y firma del docente & Fecha</b>", style["Normal"]),
         )
     ]
     table_header = Table(header, 1 * [1.4 * inch], 1 * [0.5 * inch])
@@ -676,7 +598,6 @@ def course_registration_form(request):
                     "",
                 )
             ]
-            # color = colors.black
             count += 1
             table_body = Table(data, 1 * [1.4 * inch], 1 * [0.3 * inch])
             table_body.setStyle(
@@ -694,20 +615,16 @@ def course_registration_form(request):
             )
             Story.append(table_body)
 
-    style = getSampleStyleSheet()
     semester = style["Normal"]
     semester.alignment = TA_LEFT
     semester.fontName = "Helvetica"
     semester.fontSize = 8
     semester.leading = 18
-    semester_title = (
-        "<b>Total Second Semester Credit : " + str(second_semester_unit) + "</b>"
-    )
-    semester_title = Paragraph(semester_title, semester)
-    Story.append(semester_title)
+    semester_title = "<b>Total de créditos (2.º cuatrimestre): " + str(second_semester_unit) + "</b>"
+    Story.append(Paragraph(semester_title, semester))
 
+    # Certificación
     Story.append(Spacer(1, 2))
-    style = getSampleStyleSheet()
     certification = style["Normal"]
     certification.alignment = TA_JUSTIFY
     certification.fontName = "Helvetica"
@@ -715,20 +632,16 @@ def course_registration_form(request):
     certification.leading = 18
     student = Student.objects.get(student__pk=request.user.id)
     certification_text = (
-        "CERTIFICATION OF REGISTRATION: I certify that <b>"
+        "CERTIFICACIÓN DE INSCRIPCIÓN: Se certifica que <b>"
         + str(request.user.get_full_name.upper())
-        + "</b>\
-    has been duly registered for the <b>"
+        + "</b> ha sido inscripto/a en el <b>"
         + student.level
-        + " level </b> of study in the department\
-    of COMPUTER SICENCE & ENGINEERING and that the courses and credits \
-    registered are as approved by the senate of the University"
+        + " nivel</b> de estudios y que las materias y créditos "
+        "registrados están aprobados por el Consejo Superior de la Universidad."
     )
-    certification_text = Paragraph(certification_text, certification)
-    Story.append(certification_text)
+    Story.append(Paragraph(certification_text, certification))
 
-    # FIRST SEMESTER ENDS HERE
-
+    # Logos/foto
     logo = settings.STATICFILES_DIRS[0] + "/img/brand.png"
     im_logo = Image(logo, 1 * inch, 1 * inch)
     setattr(im_logo, "_offs_x", -218)

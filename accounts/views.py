@@ -36,7 +36,7 @@ def render_to_pdf(template_name, context):
     template = render_to_string(template_name, context)
     pdf = pisa.CreatePDF(template, dest=response)
     if pdf.err:
-        return HttpResponse("We had some problems generating the PDF")
+        return HttpResponse("Tuvimos problemas al generar el PDF")
     return response
 
 
@@ -56,10 +56,10 @@ def register(request):
         form = StudentAddForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, "Account created successfully.")
+            messages.success(request, "La cuenta se creó correctamente.")
             return redirect("login")
         messages.error(
-            request, "Something is not correct, please fill all fields correctly."
+            request, "Hay campos incorrectos. Completalos correctamente."
         )
     else:
         form = StudentAddForm()
@@ -139,7 +139,7 @@ def profile_single(request, user_id):
         )
         context.update(
             {
-                "user_type": "Lecturer",
+                "user_type": "Docente",
                 "courses": courses,
             }
         )
@@ -150,7 +150,7 @@ def profile_single(request, user_id):
         )
         context.update(
             {
-                "user_type": "Student",
+                "user_type": "Estudiante",
                 "courses": courses,
                 "student": student,
             }
@@ -167,7 +167,7 @@ def profile_single(request, user_id):
 @login_required
 @admin_required
 def admin_panel(request):
-    return render(request, "setting/admin_panel.html", {"title": "Admin Panel"})
+    return render(request, "setting/admin_panel.html", {"title": "Panel de administración"})
 
 
 # ########################################################
@@ -181,9 +181,9 @@ def profile_update(request):
         form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, "Your profile has been updated successfully.")
+            messages.success(request, "Tu perfil se actualizó correctamente.")
             return redirect("profile")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = ProfileUpdateForm(instance=request.user)
     return render(request, "setting/profile_info_change.html", {"form": form})
@@ -196,9 +196,9 @@ def change_password(request):
         if form.is_valid():
             user = form.save()
             update_session_auth_hash(request, user)
-            messages.success(request, "Your password was successfully updated!")
+            messages.success(request, "¡Tu contraseña se actualizó correctamente!")
             return redirect("profile")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = PasswordChangeForm(request.user)
     return render(request, "setting/password_change.html", {"form": form})
@@ -220,14 +220,14 @@ def staff_add_view(request):
             email = lecturer.email
             messages.success(
                 request,
-                f"Account for lecturer {full_name} has been created. "
-                f"An email with account credentials will be sent to {email} within a minute.",
+                f"Se creó la cuenta del docente {full_name}. "
+                f"En minutos se enviarán las credenciales a {email}.",
             )
             return redirect("lecturer_list")
     else:
         form = StaffAddForm()
     return render(
-        request, "accounts/add_staff.html", {"title": "Add Lecturer", "form": form}
+        request, "accounts/add_staff.html", {"title": "Agregar docente", "form": form}
     )
 
 
@@ -240,13 +240,13 @@ def edit_staff(request, pk):
         if form.is_valid():
             form.save()
             full_name = lecturer.get_full_name
-            messages.success(request, f"Lecturer {full_name} has been updated.")
+            messages.success(request, f"Docente {full_name} actualizado correctamente.")
             return redirect("lecturer_list")
-        messages.error(request, "Please correct the error below.")
+        messages.error(request, "Corregí el error indicado abajo.")
     else:
         form = ProfileUpdateForm(instance=lecturer)
     return render(
-        request, "accounts/edit_lecturer.html", {"title": "Edit Lecturer", "form": form}
+        request, "accounts/edit_lecturer.html", {"title": "Editar docente", "form": form}
     )
 
 
@@ -259,7 +259,7 @@ class LecturerFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Lecturers"
+        context["title"] = "Docentes"
         return context
 
 
@@ -270,12 +270,12 @@ def render_lecturer_pdf_list(request):
     template_path = "pdf/lecturer_list.html"
     context = {"lecturers": lecturers}
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'filename="lecturers_list.pdf"'
+    response["Content-Disposition"] = 'filename="lista_docentes.pdf"'
     template = get_template(template_path)
     html = template.render(context)
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
-        return HttpResponse(f"We had some errors <pre>{html}</pre>")
+        return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
     return response
 
 
@@ -285,7 +285,7 @@ def delete_staff(request, pk):
     lecturer = get_object_or_404(User, is_lecturer=True, pk=pk)
     full_name = lecturer.get_full_name
     lecturer.delete()
-    messages.success(request, f"Lecturer {full_name} has been deleted.")
+    messages.success(request, f"Docente {full_name} eliminado correctamente.")
     return redirect("lecturer_list")
 
 
@@ -305,15 +305,15 @@ def student_add_view(request):
             email = student.email
             messages.success(
                 request,
-                f"Account for {full_name} has been created. "
-                f"An email with account credentials will be sent to {email} within a minute.",
+                f"Se creó la cuenta de {full_name}. "
+                f"En minutos se enviarán las credenciales a {email}.",
             )
             return redirect("student_list")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = StudentAddForm()
     return render(
-        request, "accounts/add_student.html", {"title": "Add Student", "form": form}
+        request, "accounts/add_student.html", {"title": "Agregar estudiante", "form": form}
     )
 
 
@@ -326,13 +326,13 @@ def edit_student(request, pk):
         if form.is_valid():
             form.save()
             full_name = student_user.get_full_name
-            messages.success(request, f"Student {full_name} has been updated.")
+            messages.success(request, f"Estudiante {full_name} actualizado correctamente.")
             return redirect("student_list")
-        messages.error(request, "Please correct the error below.")
+        messages.error(request, "Corregí el error indicado abajo.")
     else:
         form = ProfileUpdateForm(instance=student_user)
     return render(
-        request, "accounts/edit_student.html", {"title": "Edit Student", "form": form}
+        request, "accounts/edit_student.html", {"title": "Editar estudiante", "form": form}
     )
 
 
@@ -345,7 +345,7 @@ class StudentListView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Students"
+        context["title"] = "Estudiantes"
         return context
 
 
@@ -356,12 +356,12 @@ def render_student_pdf_list(request):
     template_path = "pdf/student_list.html"
     context = {"students": students}
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'filename="students_list.pdf"'
+    response["Content-Disposition"] = 'filename="lista_estudiantes.pdf"'
     template = get_template(template_path)
     html = template.render(context)
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
-        return HttpResponse(f"We had some errors <pre>{html}</pre>")
+        return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
     return response
 
 
@@ -371,7 +371,7 @@ def delete_student(request, pk):
     student = get_object_or_404(Student, pk=pk)
     full_name = student.student.get_full_name
     student.delete()
-    messages.success(request, f"Student {full_name} has been deleted.")
+    messages.success(request, f"Estudiante {full_name} eliminado correctamente.")
     return redirect("student_list")
 
 
@@ -385,15 +385,15 @@ def edit_student_program(request, pk):
         if form.is_valid():
             form.save()
             full_name = user.get_full_name
-            messages.success(request, f"{full_name}'s program has been updated.")
+            messages.success(request, f"La carrera de {full_name} fue actualizada.")
             return redirect("profile_single", user_id=pk)
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = ProgramUpdateForm(instance=student)
     return render(
         request,
         "accounts/edit_student_program.html",
-        {"title": "Edit Program", "form": form, "student": student},
+        {"title": "Editar carrera", "form": form, "student": student},
     )
 
 
@@ -409,5 +409,5 @@ class ParentAdd(CreateView):
     template_name = "accounts/parent_form.html"
 
     def form_valid(self, form):
-        messages.success(self.request, "Parent added successfully.")
+        messages.success(self.request, "Familiar agregado correctamente.")
         return super().form_valid(form)

@@ -42,7 +42,7 @@ class ProgramFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Programs"
+        context["title"] = "Carreras"
         return context
 
 
@@ -53,13 +53,13 @@ def program_add(request):
         form = ProgramForm(request.POST)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"{program.title} program has been created.")
+            messages.success(request, f"Se creó la carrera {program.title}.")
             return redirect("programs")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = ProgramForm()
     return render(
-        request, "course/program_add.html", {"title": "Add Program", "form": form}
+        request, "course/program_add.html", {"title": "Agregar carrera", "form": form}
     )
 
 
@@ -91,13 +91,13 @@ def program_edit(request, pk):
         form = ProgramForm(request.POST, instance=program)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"{program.title} program has been updated.")
+            messages.success(request, f"Se actualizó la carrera {program.title}.")
             return redirect("programs")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = ProgramForm(instance=program)
     return render(
-        request, "course/program_add.html", {"title": "Edit Program", "form": form}
+        request, "course/program_add.html", {"title": "Editar carrera", "form": form}
     )
 
 
@@ -107,7 +107,7 @@ def program_delete(request, pk):
     program = get_object_or_404(Program, pk=pk)
     title = program.title
     program.delete()
-    messages.success(request, f"Program {title} has been deleted.")
+    messages.success(request, f"Se eliminó la carrera {title}.")
     return redirect("programs")
 
 
@@ -145,16 +145,16 @@ def course_add(request, pk):
         if form.is_valid():
             course = form.save()
             messages.success(
-                request, f"{course.title} ({course.code}) has been created."
+                request, f"Se creó la materia {course.title} ({course.code})."
             )
             return redirect("program_detail", pk=program.pk)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = CourseAddForm(initial={"program": program})
     return render(
         request,
         "course/course_add.html",
-        {"title": "Add Course", "form": form, "program": program},
+        {"title": "Agregar materia", "form": form, "program": program},
     )
 
 
@@ -167,14 +167,14 @@ def course_edit(request, slug):
         if form.is_valid():
             course = form.save()
             messages.success(
-                request, f"{course.title} ({course.code}) has been updated."
+                request, f"Se actualizó la materia {course.title} ({course.code})."
             )
             return redirect("program_detail", pk=course.program.pk)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = CourseAddForm(instance=course)
     return render(
-        request, "course/course_add.html", {"title": "Edit Course", "form": form}
+        request, "course/course_add.html", {"title": "Editar materia", "form": form}
     )
 
 
@@ -185,7 +185,7 @@ def course_delete(request, slug):
     title = course.title
     program_id = course.program.id
     course.delete()
-    messages.success(request, f"Course {title} has been deleted.")
+    messages.success(request, f"Se eliminó la materia {title}.")
     return redirect("program_detail", pk=program_id)
 
 
@@ -205,13 +205,13 @@ class CourseAllocationFormView(CreateView):
         allocation, created = CourseAllocation.objects.get_or_create(lecturer=lecturer)
         allocation.courses.set(selected_courses)
         messages.success(
-            self.request, f"Courses allocated to {lecturer.get_full_name} successfully."
+            self.request, f"Se asignaron materias a {lecturer.get_full_name} correctamente."
         )
         return redirect("course_allocation_view")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Assign Course"
+        context["title"] = "Asignar materias"
         return context
 
 
@@ -222,7 +222,7 @@ class CourseAllocationFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Course Allocations"
+        context["title"] = "Asignaciones de materias"
         return context
 
 
@@ -234,15 +234,15 @@ def edit_allocated_course(request, pk):
         form = EditCourseAllocationForm(request.POST, instance=allocation)
         if form.is_valid():
             form.save()
-            messages.success(request, "Course allocation has been updated.")
+            messages.success(request, "Se actualizaron las asignaciones de materias.")
             return redirect("course_allocation_view")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = EditCourseAllocationForm(instance=allocation)
     return render(
         request,
         "course/course_allocation_form.html",
-        {"title": "Edit Course Allocation", "form": form},
+        {"title": "Editar asignaciones", "form": form},
     )
 
 
@@ -251,7 +251,7 @@ def edit_allocated_course(request, pk):
 def deallocate_course(request, pk):
     allocation = get_object_or_404(CourseAllocation, pk=pk)
     allocation.delete()
-    messages.success(request, "Successfully deallocated courses.")
+    messages.success(request, "Se quitaron las asignaciones correctamente.")
     return redirect("course_allocation_view")
 
 
@@ -270,15 +270,15 @@ def handle_file_upload(request, slug):
             upload = form.save(commit=False)
             upload.course = course
             upload.save()
-            messages.success(request, f"{upload.title} has been uploaded.")
+            messages.success(request, f"Se subió '{upload.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = UploadFormFile()
     return render(
         request,
         "upload/upload_file_form.html",
-        {"title": "File Upload", "form": form, "course": course},
+        {"title": "Subir archivo", "form": form, "course": course},
     )
 
 
@@ -291,15 +291,15 @@ def handle_file_edit(request, slug, file_id):
         form = UploadFormFile(request.POST, request.FILES, instance=upload)
         if form.is_valid():
             upload = form.save()
-            messages.success(request, f"{upload.title} has been updated.")
+            messages.success(request, f"Se actualizó '{upload.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = UploadFormFile(instance=upload)
     return render(
         request,
         "upload/upload_file_form.html",
-        {"title": "Edit File", "form": form, "course": course},
+        {"title": "Editar archivo", "form": form, "course": course},
     )
 
 
@@ -309,7 +309,7 @@ def handle_file_delete(request, slug, file_id):
     upload = get_object_or_404(Upload, pk=file_id)
     title = upload.title
     upload.delete()
-    messages.success(request, f"{title} has been deleted.")
+    messages.success(request, f"Se eliminó '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -328,15 +328,15 @@ def handle_video_upload(request, slug):
             video = form.save(commit=False)
             video.course = course
             video.save()
-            messages.success(request, f"{video.title} has been uploaded.")
+            messages.success(request, f"Se subió el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = UploadFormVideo()
     return render(
         request,
         "upload/upload_video_form.html",
-        {"title": "Video Upload", "form": form, "course": course},
+        {"title": "Subir video", "form": form, "course": course},
     )
 
 
@@ -360,15 +360,15 @@ def handle_video_edit(request, slug, video_slug):
         form = UploadFormVideo(request.POST, request.FILES, instance=video)
         if form.is_valid():
             video = form.save()
-            messages.success(request, f"{video.title} has been updated.")
+            messages.success(request, f"Se actualizó el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = UploadFormVideo(instance=video)
     return render(
         request,
         "upload/upload_video_form.html",
-        {"title": "Edit Video", "form": form, "course": course},
+        {"title": "Editar video", "form": form, "course": course},
     )
 
 
@@ -378,7 +378,7 @@ def handle_video_delete(request, slug, video_slug):
     video = get_object_or_404(UploadVideo, slug=video_slug)
     title = video.title
     video.delete()
-    messages.success(request, f"{title} has been deleted.")
+    messages.success(request, f"Se eliminó el video '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -401,12 +401,12 @@ def course_registration(request):
             course = Course.objects.get(pk=ids[s])
             obj = TakenCourse.objects.create(student=student, course=course)
             obj.save()
-        messages.success(request, "Courses registered successfully!")
+        messages.success(request, "Materias inscriptas correctamente.")
         return redirect("course_registration")
     else:
         current_semester = Semester.objects.filter(is_current_semester=True).first()
         if not current_semester:
-            messages.error(request, "No active semester found.")
+            messages.error(request, "No se encontró un cuatrimestre activo.")
             return render(request, "course/course_registration.html")
 
         # student = Student.objects.get(student__pk=request.user.id)
@@ -476,7 +476,7 @@ def course_drop(request):
         for course_id in course_ids:
             course = get_object_or_404(Course, pk=course_id)
             TakenCourse.objects.filter(student=student, course=course).delete()
-        messages.success(request, "Courses dropped successfully!")
+        messages.success(request, "Se dio de baja a las materias seleccionadas.")
         return redirect("course_registration")
 
 

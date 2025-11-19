@@ -2,8 +2,6 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
-from modeltranslation.admin import TranslationAdmin
-from modeltranslation.forms import TranslationModelForm
 
 from .models import (
     Quiz,
@@ -20,17 +18,17 @@ class ChoiceInline(admin.TabularInline):
     model = Choice
 
 
-class QuizAdminForm(TranslationModelForm):
+class QuizAdminForm(forms.ModelForm):
     questions = forms.ModelMultipleChoiceField(
         queryset=Question.objects.all().select_subclasses(),
         required=False,
-        label=_("Questions"),
-        widget=FilteredSelectMultiple(verbose_name=_("Questions"), is_stacked=False),
+        label=_("Preguntas"),
+        widget=FilteredSelectMultiple(verbose_name=_("Preguntas"), is_stacked=False),
     )
 
     class Meta:
         model = Quiz
-        fields = ["title_en"]
+        fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super(QuizAdminForm, self).__init__(*args, **kwargs)
@@ -47,9 +45,8 @@ class QuizAdminForm(TranslationModelForm):
         return quiz
 
 
-class QuizAdmin(TranslationAdmin):
-    pass
-    # form = QuizAdminForm
+class QuizAdmin(admin.ModelAdmin):
+    form = QuizAdminForm
     # fields = (
     #     "title",
     #     "description",
@@ -62,11 +59,11 @@ class QuizAdmin(TranslationAdmin):
     # )
 
 
-class MCQuestionAdmin(TranslationAdmin):
+class MCQuestionAdmin(admin.ModelAdmin):
     list_display = ("content",)
     # list_filter = ('category',)
     fieldsets = [
-        ("figure" "quiz" "choice_order", {"fields": ("content", "explanation")})
+        ("Figura / Cuestionario / Orden de opciones", {"fields": ("content", "explanation")})
     ]
 
     search_fields = ("content", "explanation")

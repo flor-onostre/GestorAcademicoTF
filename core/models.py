@@ -16,9 +16,9 @@ SECOND = _("Second")
 THIRD = _("Third")
 
 SEMESTER = (
-    (FIRST, _("First")),
-    (SECOND, _("Second")),
-    (THIRD, _("Third")),
+    (FIRST, _("1º Cuatrimestre")),
+    (SECOND, _("2º Cuatrimestre")),
+    (THIRD, _("3º Cuatrimestre")),
 )
 
 

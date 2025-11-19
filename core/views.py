@@ -15,7 +15,7 @@ from .models import NewsAndEvents, ActivityLog, Session, Semester
 def home_view(request):
     items = NewsAndEvents.objects.all().order_by("-updated_date")
     context = {
-        "title": "News & Events",
+        "title": "Noticias y Eventos",
         "items": items,
     }
     return render(request, "core/index.html", context)
@@ -24,6 +24,7 @@ def home_view(request):
 @login_required
 @admin_required
 def dashboard_view(request):
+    
     logs = ActivityLog.objects.all().order_by("-created_at")[:10]
     gender_count = Student.get_gender_count()
     context = {
@@ -41,15 +42,15 @@ def dashboard_view(request):
 def post_add(request):
     if request.method == "POST":
         form = NewsAndEventsForm(request.POST)
-        title = form.cleaned_data.get("title", "Post") if form.is_valid() else None
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
             form.save()
-            messages.success(request, f"{title} has been uploaded.")
+            messages.success(request, f"{title} fue publicada correctamente.")
             return redirect("home")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = NewsAndEventsForm()
-    return render(request, "core/post_add.html", {"title": "Add Post", "form": form})
+    return render(request, "core/post_add.html", {"title": "Agregar publicación", "form": form})
 
 
 @login_required
@@ -58,15 +59,15 @@ def edit_post(request, pk):
     instance = get_object_or_404(NewsAndEvents, pk=pk)
     if request.method == "POST":
         form = NewsAndEventsForm(request.POST, instance=instance)
-        title = form.cleaned_data.get("title", "Post") if form.is_valid() else None
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
             form.save()
-            messages.success(request, f"{title} has been updated.")
+            messages.success(request, f"{title} fue actualizada correctamente.")
             return redirect("home")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = NewsAndEventsForm(instance=instance)
-    return render(request, "core/post_add.html", {"title": "Edit Post", "form": form})
+    return render(request, "core/post_add.html", {"title": "Editar publicación", "form": form})
 
 
 @login_required
@@ -75,7 +76,7 @@ def delete_post(request, pk):
     post = get_object_or_404(NewsAndEvents, pk=pk)
     post_title = post.title
     post.delete()
-    messages.success(request, f"{post_title} has been deleted.")
+    messages.success(request, f"{post_title} fue eliminada correctamente.")
     return redirect("home")
 
 
@@ -100,7 +101,7 @@ def session_add_view(request):
             if form.cleaned_data.get("is_current_session"):
                 unset_current_session()
             form.save()
-            messages.success(request, "Session added successfully.")
+            messages.success(request, "Ciclo lectivo agregado correctamente.")
             return redirect("session_list")
     else:
         form = SessionForm()
@@ -117,7 +118,7 @@ def session_update_view(request, pk):
             if form.cleaned_data.get("is_current_session"):
                 unset_current_session()
             form.save()
-            messages.success(request, "Session updated successfully.")
+            messages.success(request, "Ciclo lectivo actualizado correctamente.")
             return redirect("session_list")
     else:
         form = SessionForm(instance=session)
@@ -129,10 +130,10 @@ def session_update_view(request, pk):
 def session_delete_view(request, pk):
     session = get_object_or_404(Session, pk=pk)
     if session.is_current_session:
-        messages.error(request, "You cannot delete the current session.")
+        messages.error(request, "No podés eliminar el ciclo lectivo actual.")
     else:
         session.delete()
-        messages.success(request, "Session successfully deleted.")
+        messages.success(request, "Ciclo lectivo eliminado correctamente.")
     return redirect("session_list")
 
 
@@ -164,7 +165,7 @@ def semester_add_view(request):
                 unset_current_semester()
                 unset_current_session()
             form.save()
-            messages.success(request, "Semester added successfully.")
+            messages.success(request, "Cuatrimestre agregado correctamente.")
             return redirect("semester_list")
     else:
         form = SemesterForm()
@@ -182,7 +183,7 @@ def semester_update_view(request, pk):
                 unset_current_semester()
                 unset_current_session()
             form.save()
-            messages.success(request, "Semester updated successfully!")
+            messages.success(request, "¡Cuatrimestre actualizado correctamente!")
             return redirect("semester_list")
     else:
         form = SemesterForm(instance=semester)
@@ -194,10 +195,10 @@ def semester_update_view(request, pk):
 def semester_delete_view(request, pk):
     semester = get_object_or_404(Semester, pk=pk)
     if semester.is_current_semester:
-        messages.error(request, "You cannot delete the current semester.")
+        messages.error(request, "No podés eliminar el cuatrimestre actual.")
     else:
         semester.delete()
-        messages.success(request, "Semester successfully deleted.")
+        messages.success(request, "Cuatrimestre eliminado correctamente.")
     return redirect("semester_list")
 
 

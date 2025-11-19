@@ -12,6 +12,9 @@ class ProgramForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
         self.fields["summary"].widget.attrs.update({"class": "form-control"})
+        # Labels visibles
+        self.fields["title"].label = "Nombre de la carrera"
+        self.fields["summary"].label = "Descripción"
 
 
 class CourseAddForm(forms.ModelForm):
@@ -30,6 +33,15 @@ class CourseAddForm(forms.ModelForm):
         self.fields["level"].widget.attrs.update({"class": "form-control"})
         self.fields["year"].widget.attrs.update({"class": "form-control"})
         self.fields["semester"].widget.attrs.update({"class": "form-control"})
+        # Labels visibles
+        self.fields["title"].label = "Nombre de la materia"
+        self.fields["code"].label = "Código"
+        self.fields["credit"].label = "Créditos"
+        self.fields["summary"].label = "Descripción"
+        self.fields["program"].label = "Carrera"
+        self.fields["level"].label = "Nivel"
+        self.fields["year"].label = "Año"
+        self.fields["semester"].label = "Cuatrimestre"
 
 
 class CourseAllocationForm(forms.ModelForm):
@@ -43,7 +55,7 @@ class CourseAllocationForm(forms.ModelForm):
     lecturer = forms.ModelChoiceField(
         queryset=User.objects.filter(is_lecturer=True),
         widget=forms.Select(attrs={"class": "browser-default custom-select"}),
-        label="lecturer",
+        label="Docente",
     )
 
     class Meta:
@@ -53,6 +65,8 @@ class CourseAllocationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(CourseAllocationForm, self).__init__(*args, **kwargs)
         self.fields["lecturer"].queryset = User.objects.filter(is_lecturer=True)
+        # Labels visibles
+        self.fields["courses"].label = "Materias"
 
 
 class EditCourseAllocationForm(forms.ModelForm):
@@ -64,7 +78,7 @@ class EditCourseAllocationForm(forms.ModelForm):
     lecturer = forms.ModelChoiceField(
         queryset=User.objects.filter(is_lecturer=True),
         widget=forms.Select(attrs={"class": "browser-default custom-select"}),
-        label="lecturer",
+        label="Docente",
     )
 
     class Meta:
@@ -75,6 +89,8 @@ class EditCourseAllocationForm(forms.ModelForm):
         #    user = kwargs.pop('user')
         super(EditCourseAllocationForm, self).__init__(*args, **kwargs)
         self.fields["lecturer"].queryset = User.objects.filter(is_lecturer=True)
+        # Labels visibles
+        self.fields["courses"].label = "Materias"
 
 
 # Upload files to specific course
@@ -90,6 +106,9 @@ class UploadFormFile(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
         self.fields["file"].widget.attrs.update({"class": "form-control"})
+        # Labels visibles
+        self.fields["title"].label = "Título"
+        self.fields["file"].label = "Archivo"
 
 
 # Upload video to specific course
@@ -105,3 +124,6 @@ class UploadFormVideo(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
         self.fields["video"].widget.attrs.update({"class": "form-control"})
+        # Labels visibles
+        self.fields["title"].label = "Título"
+        self.fields["video"].label = "Video"

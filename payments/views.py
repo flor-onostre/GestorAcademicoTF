@@ -42,7 +42,7 @@ class PaymentGetwaysView(TemplateView):
         context = super(PaymentGetwaysView, self).get_context_data(**kwargs)
         context["key"] = settings.STRIPE_PUBLISHABLE_KEY
         context["amount"] = 500
-        context["description"] = "Stripe Payment"
+        context["description"] = "Pago con Stripe"
         context["invoice_session"] = self.request.session["invoice_session"]
         print(context["invoice_session"])
         return context
@@ -55,7 +55,7 @@ def stripe_charge(request):
         charge = stripe.Charge.create(
             amount=500,
             currency="eur",
-            description="A Django charge",
+            description="Un cargo de Django",
             source=request.POST["stripeToken"],
         )
         invoice_code = request.session["invoice_session"]
@@ -131,16 +131,16 @@ def gopay_charge(request):
         )
 
         if response.has_succeed():
-            print("\nPayment Succeed\n")
-            print("hooray, API returned " + str(response))
+            print("\nPago exitoso\n")
+            print("genial, la API devolvió " + str(response))
         else:
-            print("\nPayment Fail\n")
+            print("\nPago fallidon")
             print(
-                "oops, API returned " + str(response.status_code) + ": " + str(response)
+                "ups, la API devolvió " + str(response.status_code) + ": " + str(response)
             )
         return JsonResponse({"message": str(response)})
 
-    return JsonResponse({"message": "GET requested"})
+    return JsonResponse({"message": "Se realizó una solicitud GET"})
 
 
 def paymentComplete(request):
@@ -153,7 +153,7 @@ def paymentComplete(request):
         # return redirect('invoice', invoice.invoice_code)
     body = json.loads(request.body)
     print("BODY:", body)
-    return JsonResponse("Payment completed!", safe=False)
+    return JsonResponse("¡Pago completado!", safe=False)
 
 
 def create_invoice(request):

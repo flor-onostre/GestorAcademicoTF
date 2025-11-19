@@ -8,70 +8,27 @@ from accounts.models import Student
 from core.models import Semester
 from course.models import Course
 
-A_PLUS = "A+"
-A = "A"
-A_MINUS = "A-"
-B_PLUS = "B+"
-B = "B"
-B_MINUS = "B-"
-C_PLUS = "C+"
-C = "C"
-C_MINUS = "C-"
-D = "D"
-F = "F"
-NG = "NG"
+# -----------------------------
+# Escala de calificaciones 0–10
+# -----------------------------
+# Guardamos la nota como string para compatibilidad con CharField(max_length=2).
+GRADE_CHOICES = tuple((str(n), str(n)) for n in range(10, -1, -1))  # "10","9",...,"0"
 
-GRADE_CHOICES = (
-    (A_PLUS, "A+"),
-    (A, "A"),
-    (A_MINUS, "A-"),
-    (B_PLUS, "B+"),
-    (B, "B"),
-    (B_MINUS, "B-"),
-    (C_PLUS, "C+"),
-    (C, "C"),
-    (C_MINUS, "C-"),
-    (D, "D"),
-    (F, "F"),
-    (NG, "NG"),
-)
-
-PASS = "PASS"
-FAIL = "FAIL"
+# Comentarios / estado de cursada (valores internos estables; etiquetas en español)
+PASS = "PASS"          # Aprobado (>= 4)
+FAIL = "FAIL"          # Reprobado (< 4)
+PROMOTED = "PROMOTED"  # Promocionado (>= 6)
 
 COMMENT_CHOICES = (
-    (PASS, "PASS"),
-    (FAIL, "FAIL"),
+    (PROMOTED, "Promocionado"),
+    (PASS, "Aprobado"),
+    (FAIL, "Reprobado"),
 )
 
-GRADE_BOUNDARIES = [
-    (90, A_PLUS),
-    (85, A),
-    (80, A_MINUS),
-    (75, B_PLUS),
-    (70, B),
-    (65, B_MINUS),
-    (60, C_PLUS),
-    (55, C),
-    (50, C_MINUS),
-    (45, D),
-    (0, F),
-]
-
-GRADE_POINT_MAPPING = {
-    A_PLUS: 4.0,
-    A: 4.0,
-    A_MINUS: 3.75,
-    B_PLUS: 3.5,
-    B: 3.0,
-    B_MINUS: 2.75,
-    C_PLUS: 2.5,
-    C: 2.0,
-    C_MINUS: 1.75,
-    D: 1.0,
-    F: 0.0,
-    NG: 0.0,
-}
+# Para GPA/CGPA: usamos la propia nota numérica como "point" base (0–10)
+GRADE_POINT_MAPPING = {str(n): float(n) for n in range(0, 11)}
+# Compatibilidad si aparece algún valor residual
+GRADE_POINT_MAPPING.update({"NG": 0.0})
 
 
 class TakenCourse(models.Model):
@@ -111,7 +68,11 @@ class TakenCourse(models.Model):
     def __str__(self):
         return f"{self.course.title} ({self.course.code})"
 
+    # -----------------------------
+    # Cálculos
+    # -----------------------------
     def get_total(self):
+        # Suma todas las componentes
         return sum(
             [
                 Decimal(self.assignment),
@@ -122,22 +83,45 @@ class TakenCourse(models.Model):
             ]
         )
 
+    def _total_to_10(self, total: Decimal) -> Decimal:
+        """
+        Normaliza el total a escala 0–10 sin asumir un esquema fijo:
+        - Si el total ya está en 0–10, lo deja como está.
+        - Si es >10 (por ej. escala 0–100), lo divide por 10.
+        """
+        if total is None:
+            return Decimal("0")
+        if total <= 10:
+            return total
+        return total / Decimal("10")
+
     def get_grade(self):
-        total = self.total
-        for boundary, grade in GRADE_BOUNDARIES:
-            if total >= boundary:
-                return grade
-        return NG
+        total = self.get_total()
+        grade_0_10 = self._total_to_10(total)
+        # Redondeo al entero más cercano y límite entre 0 y 10
+        grade_int = max(0, min(10, int(round(grade_0_10))))
+        return str(grade_int)
 
     def get_comment(self):
-        if self.grade in [F, NG]:
-            return FAIL
-        return PASS
+        # Promociona con 6+, aprueba con 4–5, reprueba con <4
+        try:
+            g = int(self.grade) if self.grade not in (None, "", "NG") else 0
+        except ValueError:
+            g = 0
+        if g >= 6:
+            return PROMOTED
+        if g >= 4:
+            return PASS
+        return FAIL
 
     def get_point(self):
+        # Puntos = créditos * nota (0–10)
         credit = self.course.credit
-        grade_point = GRADE_POINT_MAPPING.get(self.grade, 0.0)
-        return Decimal(credit) * Decimal(grade_point)
+        try:
+            grade_num = Decimal(self.grade)
+        except Exception:
+            grade_num = Decimal("0")
+        return Decimal(credit) * grade_num
 
     def save(self, *args, **kwargs):
         self.total = self.get_total()
@@ -146,6 +130,7 @@ class TakenCourse(models.Model):
         self.comment = self.get_comment()
         super().save(*args, **kwargs)
 
+    # GPA/cGPA: promedios ponderados por créditos, sobre 10
     def calculate_gpa(self):
         current_semester = Semester.objects.filter(is_current_semester=True).first()
         if not current_semester:
@@ -186,4 +171,4 @@ class Result(models.Model):
     level = models.CharField(max_length=25, choices=settings.LEVEL_CHOICES, null=True)
 
     def __str__(self):
-        return f"Result for {self.student} - Semester: {self.semester}, Level: {self.level}"
+        return f"Resultado de {self.student} - Cuatrimestre: {self.semester}, Nivel: {self.level}"

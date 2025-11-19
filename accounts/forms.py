@@ -18,7 +18,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Username",
+        label="Usuario",
         required=False,
     )
 
@@ -30,7 +30,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="First Name",
+        label="Nombre",
     )
 
     last_name = forms.CharField(
@@ -41,7 +41,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Last Name",
+        label="Apellido",
     )
 
     gender = forms.CharField(
@@ -61,7 +61,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Address",
+        label="Dirección",
     )
 
     phone = forms.CharField(
@@ -72,7 +72,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Mobile No.",
+        label="Nro. de teléfono",
     )
 
     email = forms.CharField(
@@ -83,7 +83,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Email",
+        label="Dirección de correo",
     )
 
     password1 = forms.CharField(
@@ -94,7 +94,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password",
+        label="Contraseña",
         required=False,
     )
 
@@ -106,7 +106,7 @@ class StaffAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password Confirmation",
+        label="Confirmar contraseña",
         required=False,
     )
 
@@ -135,7 +135,7 @@ class StudentAddForm(UserCreationForm):
         widget=forms.TextInput(
             attrs={"type": "text", "class": "form-control", "id": "username_id"}
         ),
-        label="Username",
+        label="Usuario",
         required=False,
     )
     address = forms.CharField(
@@ -146,7 +146,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Address",
+        label="Dirección",
     )
 
     phone = forms.CharField(
@@ -157,7 +157,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Mobile No.",
+        label="Nro. de teléfono",
     )
 
     first_name = forms.CharField(
@@ -168,7 +168,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="First name",
+        label="Nombre",
     )
 
     last_name = forms.CharField(
@@ -179,7 +179,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Last name",
+        label="Apellido",
     )
 
     gender = forms.CharField(
@@ -205,7 +205,7 @@ class StudentAddForm(UserCreationForm):
         widget=forms.Select(
             attrs={"class": "browser-default custom-select form-control"}
         ),
-        label="Program",
+        label="Carrera",
     )
 
     email = forms.EmailField(
@@ -215,7 +215,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Email Address",
+        label="Dirección de correo",
     )
 
     password1 = forms.CharField(
@@ -226,7 +226,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password",
+        label="Contraseña",
         required=False,
     )
 
@@ -238,7 +238,7 @@ class StudentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password Confirmation",
+        label="Confirmar contraseña",
         required=False,
     )
 
@@ -281,7 +281,7 @@ class ProfileUpdateForm(UserChangeForm):
                 "class": "form-control",
             }
         ),
-        label="Email Address",
+        label="Dirección de correo",
     )
 
     first_name = forms.CharField(
@@ -291,7 +291,7 @@ class ProfileUpdateForm(UserChangeForm):
                 "class": "form-control",
             }
         ),
-        label="First Name",
+        label="Nombre",
     )
 
     last_name = forms.CharField(
@@ -301,7 +301,7 @@ class ProfileUpdateForm(UserChangeForm):
                 "class": "form-control",
             }
         ),
-        label="Last Name",
+        label="Apellido",
     )
 
     gender = forms.CharField(
@@ -320,7 +320,7 @@ class ProfileUpdateForm(UserChangeForm):
                 "class": "form-control",
             }
         ),
-        label="Phone No.",
+        label="Nro. de teléfono",
     )
 
     address = forms.CharField(
@@ -330,7 +330,7 @@ class ProfileUpdateForm(UserChangeForm):
                 "class": "form-control",
             }
         ),
-        label="Address / city",
+        label="Dirección / Ciudad",
     )
 
     class Meta:
@@ -352,7 +352,7 @@ class ProgramUpdateForm(UserChangeForm):
         widget=forms.Select(
             attrs={"class": "browser-default custom-select form-control"}
         ),
-        label="Program",
+        label="Carrera",
     )
 
     class Meta:
@@ -364,7 +364,7 @@ class EmailValidationOnForgotPassword(PasswordResetForm):
     def clean_email(self):
         email = self.cleaned_data["email"]
         if not User.objects.filter(email__iexact=email, is_active=True).exists():
-            msg = "There is no user registered with the specified E-mail address. "
+            msg = "No existe un usuario con este correo electrónico."
             self.add_error("email", msg)
             return email
 
@@ -378,7 +378,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Username",
+        label="Usuario",
     )
     address = forms.CharField(
         max_length=30,
@@ -388,7 +388,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Address",
+        label="Dirección",
     )
 
     phone = forms.CharField(
@@ -399,7 +399,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Mobile No.",
+        label="Nro. de teléfono",
     )
 
     first_name = forms.CharField(
@@ -410,7 +410,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="First name",
+        label="Nombre",
     )
 
     last_name = forms.CharField(
@@ -421,7 +421,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Last name",
+        label="Apellido",
     )
 
     email = forms.EmailField(
@@ -431,7 +431,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Email Address",
+        label="Dirección de correo",
     )
 
     student = forms.ModelChoiceField(
@@ -439,7 +439,7 @@ class ParentAddForm(UserCreationForm):
         widget=forms.Select(
             attrs={"class": "browser-default custom-select form-control"}
         ),
-        label="Student",
+        label="Estudiante",
     )
 
     relation_ship = forms.CharField(
@@ -449,6 +449,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "browser-default custom-select form-control",
             },
         ),
+        label="Relación con el estudiante",
     )
 
     password1 = forms.CharField(
@@ -459,7 +460,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password",
+        label="Contraseña",
     )
 
     password2 = forms.CharField(
@@ -470,7 +471,7 @@ class ParentAddForm(UserCreationForm):
                 "class": "form-control",
             }
         ),
-        label="Password Confirmation",
+        label="Confirmar contraseña",
     )
 
     # def validate_email(self):

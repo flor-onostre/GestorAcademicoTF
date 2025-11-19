@@ -145,15 +145,12 @@ def gettext(s):
 
 
 LANGUAGES = (
-    ("en", gettext("English")),
-    ("fr", gettext("French")),
-    ("es", gettext("Spanish")),
-    ("ru", gettext("Russia")),
+    ("es", gettext("Español")),
 )
 
 LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
 
-MODELTRANSLATION_DEFAULT_LANGUAGE = "en"
+MODELTRANSLATION_DEFAULT_LANGUAGE = "es"
 LANGUAGE_CODE = "es"
 
 TIME_ZONE = "America/Argentina/Buenos_Aires"
@@ -256,8 +253,8 @@ BACHELOR_DEGREE = "Bachelor"
 MASTER_DEGREE = "Master"
 
 LEVEL_CHOICES = (
-    (BACHELOR_DEGREE, _("Bachelor Degree")),
-    (MASTER_DEGREE, _("Master Degree")),
+    (BACHELOR_DEGREE, _("Tecnicatura")),
+    (MASTER_DEGREE, _("Licenciatura")),
 )
 
 FIRST = "First"
@@ -265,7 +262,7 @@ SECOND = "Second"
 THIRD = "Third"
 
 SEMESTER_CHOICES = (
-    (FIRST, _("First")),
-    (SECOND, _("Second")),
-    (THIRD, _("Third")),
+    (FIRST, _("Primer")),
+    (SECOND, _("Segundo")),
+    (THIRD, _("Tercer")),
 )
