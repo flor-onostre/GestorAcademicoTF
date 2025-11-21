@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Materias' %}</li>
+    </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">{% trans 'Carrera' %}</label>
+                <select name="program" class="form-select">
+                    <option value="">{% trans 'Todas' %}</option>
+                    {% for program in programs %}
+                        <option value="{{ program.id }}" {% if selected_program|default:"" == program.id|stringformat:"s" %}selected{% endif %}>{{ program.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{% trans 'Buscar' %}</label>
+                <input type="text" name="q" value="{{ keyword }}" class="form-control" placeholder="{% trans 'Nombre o código de la materia' %}">
+            </div>
+            <div class="col-md-4 text-end">
+                <button type="submit" class="btn btn-primary">{% trans 'Filtrar' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive table-shadow">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>{% trans 'Materia' %}</th>
+                <th>{% trans 'Código' %}</th>
+                    <th>{% trans 'Carrera' %}</th>
+                <th>{% trans 'Tipo' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in object_list %}
+                <tr>
+                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                    <td><a href="{% url 'course_detail' slug=course.slug %}">{{ course.title }}</a></td>
+                    <td>{{ course.code }}</td>
+                    <td>
+                        {% if course.programs.all %}
+                            {% for p in course.programs.all %}
+                                {{ p.title }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            {% trans "Sin carrera" %}
+                        {% endif %}
+                    </td>
+                    <td>{{ course.get_evaluation_mode_display }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">{% trans 'No hay materias registradas.' %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="manage-wrap d-flex justify-content-start mt-3">
+    {% if programs %}
+        {% with selected_program|default_if_none:""|default:programs.0.id as target_program %}
+            <a class="btn btn-primary" href="{% url 'course_add' target_program %}">
+                <i class="fas fa-plus"></i> {% trans 'Agregar materia' %}
+            </a>
+        {% endwith %}
+    {% else %}
+        <span class="text-muted">{% trans 'No hay carreras disponibles para agregar materias.' %}</span>
+    {% endif %}
+</div>
+
+{% if is_paginated %}
+<nav class="mt-3">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&program={{ selected_program }}&q={{ keyword }}">&laquo;</a>
+            </li>
+        {% endif %}
+        <li class="page-item active">
+            <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&program={{ selected_program }}&q={{ keyword }}">&raquo;</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

@@ -9,7 +9,7 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de Publicación' %}</li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de publicación' %}</li>
     </ol>
 </nav>
 
@@ -18,7 +18,7 @@
 <div class="row">
     <div class="col-md-6 mx-auto">
         <div class="card">
-            <p class="form-title">{% trans 'Formulario de Publicación' %}</p>
+            <p class="form-title">{% trans 'Formulario de publicación' %}</p>
             <div class="card-body">
                 <form action="" method="POST">{% csrf_token %}
                     {{ form|crispy }}

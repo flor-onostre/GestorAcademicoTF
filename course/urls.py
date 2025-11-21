@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     # Program urls
+    path("universidades/", views.university_list, name="university_list"),
+    path("universidades/agregar/", views.university_add, name="university_add"),
     path("", views.ProgramFilterView.as_view(), name="programs"),
     path("<int:pk>/detail/", views.program_detail, name="program_detail"),
     path("add/", views.program_add, name="add_program"),
@@ -14,6 +16,17 @@ urlpatterns = [
     path("<int:pk>/course/add/", views.course_add, name="course_add"),
     path("course/<slug>/edit/", views.course_edit, name="edit_course"),
     path("course/delete/<slug>/", views.course_delete, name="delete_course"),
+    # Course sections
+    path("sections/", views.course_section_list, name="course_section_list"),
+    path("sections/add/", views.course_section_create, name="course_section_create"),
+    path("sections/<int:pk>/edit/", views.course_section_update, name="course_section_update"),
+    path("sections/<int:pk>/delete/", views.course_section_delete, name="course_section_delete"),
+    path("sections/<int:pk>/sessions/", views.section_sessions_view, name="section_sessions"),
+    path("sessions/<int:session_id>/attendance/", views.session_attendance_view, name="session_attendance"),
+    path("sections/<int:pk>/uploads/", views.section_upload_planilla, name="section_upload_planilla"),
+    path("materias/", views.CourseFilterView.as_view(), name="course_list"),
+    path("attendance/justify/<uuid:token>/", views.submit_justification, name="submit_justification"),
+    path("attendance/justification/<int:pk>/review/", views.review_justification, name="review_justification"),
     # CourseAllocation urls
     path(
         "course/assign/",

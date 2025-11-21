@@ -25,6 +25,16 @@ COMMENT_CHOICES = (
     (FAIL, "Reprobado"),
 )
 
+COURSE_COMPLETION_PROMOTED = "PROMOTED"
+COURSE_COMPLETION_FINAL = "FINAL"
+COURSE_COMPLETION_RETAKE = "RETAKE"
+
+COURSE_COMPLETION_CHOICES = (
+    (COURSE_COMPLETION_PROMOTED, "Promocionado"),
+    (COURSE_COMPLETION_FINAL, "Debe rendir final"),
+    (COURSE_COMPLETION_RETAKE, "Debe recursar"),
+)
+
 # Para GPA/CGPA: usamos la propia nota numérica como "point" base (0–10)
 GRADE_POINT_MAPPING = {str(n): float(n) for n in range(0, 11)}
 # Compatibilidad si aparece algún valor residual
@@ -32,9 +42,20 @@ GRADE_POINT_MAPPING.update({"NG": 0.0})
 
 
 class TakenCourse(models.Model):
+    COMPLETION_PROMOTED = COURSE_COMPLETION_PROMOTED
+    COMPLETION_FINAL = COURSE_COMPLETION_FINAL
+    COMPLETION_RETAKE = COURSE_COMPLETION_RETAKE
+
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name="taken_courses"
+    )
+    section = models.ForeignKey(
+        "course.CourseSection",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="taken_courses",
     )
     assignment = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("0.00")
@@ -49,6 +70,12 @@ class TakenCourse(models.Model):
     final_exam = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("0.00")
     )
+    first_partial = models.DecimalField(
+        max_digits=4, decimal_places=1, default=Decimal("0.0")
+    )
+    second_partial = models.DecimalField(
+        max_digits=4, decimal_places=1, default=Decimal("0.0")
+    )
     total = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("0.00"), editable=False
     )
@@ -60,6 +87,12 @@ class TakenCourse(models.Model):
     )
     comment = models.CharField(
         choices=COMMENT_CHOICES, max_length=200, blank=True, editable=False
+    )
+    completion_status = models.CharField(
+        choices=COURSE_COMPLETION_CHOICES,
+        max_length=20,
+        blank=True,
+        editable=False,
     )
 
     def get_absolute_url(self):
@@ -128,6 +161,7 @@ class TakenCourse(models.Model):
         self.grade = self.get_grade()
         self.point = self.get_point()
         self.comment = self.get_comment()
+        self.completion_status = self.determine_completion_status()
         super().save(*args, **kwargs)
 
     # GPA/cGPA: promedios ponderados por créditos, sobre 10
@@ -160,6 +194,61 @@ class TakenCourse(models.Model):
             cgpa = total_points / Decimal(total_credits)
             return round(cgpa, 2)
         return Decimal("0.00")
+
+    def _attendance_thresholds(self):
+        section = self.section
+        program = self.course.program if self.course else None
+        pass_att = Decimal("0")
+        promo_att = Decimal("0")
+        if section:
+            pass_att = Decimal(section.attendance_required or 0)
+            promo_att = Decimal(section.promotion_attendance_required or pass_att)
+        elif program:
+            pass_att = Decimal(program.min_passing_attendance or 0)
+            promo_att = Decimal(program.min_promotion_attendance or pass_att)
+        return pass_att, promo_att
+
+    def _partial_status(self, score, pass_score, promotion_score):
+        try:
+            value = Decimal(score)
+        except Exception:
+            value = Decimal("0")
+        if value >= promotion_score:
+            return "PROMOTED"
+        if value >= pass_score:
+            return "APPROVED"
+        return "FAILED"
+
+    def determine_completion_status(self):
+        course = self.course
+        if not course or not course.program:
+            return COURSE_COMPLETION_FINAL
+        pass_score = Decimal(course.program.pass_score)
+        promotion_score = Decimal(course.program.promotion_score)
+        attendance_value = Decimal(self.attendance or 0)
+        pass_att, promo_att = self._attendance_thresholds()
+        if attendance_value < pass_att:
+            return COURSE_COMPLETION_RETAKE
+        if course.evaluation_mode == Course.EvaluationModes.FINAL:
+            return COURSE_COMPLETION_FINAL
+        first_status = self._partial_status(
+            self.first_partial, pass_score, promotion_score
+        )
+        second_status = self._partial_status(
+            self.second_partial, pass_score, promotion_score
+        )
+        if (
+            first_status == "PROMOTED"
+            and second_status == "PROMOTED"
+            and attendance_value >= promo_att
+        ):
+            return COURSE_COMPLETION_PROMOTED
+        if first_status in {"PROMOTED", "APPROVED"} and second_status in {
+            "PROMOTED",
+            "APPROVED",
+        }:
+            return COURSE_COMPLETION_FINAL
+        return COURSE_COMPLETION_RETAKE
 
 
 class Result(models.Model):

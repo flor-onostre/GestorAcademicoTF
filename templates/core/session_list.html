@@ -7,17 +7,17 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Lista de Sesiones' %}</li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Lista de Ciclos lectivos' %}</li>
     </ol>
 </nav>
 
 {% if request.user.is_superuser %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'add_session' %}"><i class="fas fa-plus"></i>{% trans 'Agregar nueva sesión' %}</a>
+    <a class="btn btn-primary" href="{% url 'add_session' %}"><i class="fas fa-plus"></i>{% trans 'Agregar ciclo lectivo' %}</a>
 </div>
 {% endif %}
 
-<div class="title-1"><i class="fas fa-calendar-week"></i>{% trans 'Lista de Sesiones' %}</div>
+<div class="title-1"><i class="fas fa-calendar-week"></i>{% trans 'Lista de ciclos lectivos' %}</div>
 
 {% include 'snippets/messages.html' %}
 
@@ -26,9 +26,8 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th> {% trans 'Sesión' %} </th>
-                <th> {% trans '¿Es la sesión actual?' %} </th>
-                <th> {% trans 'Próxima sesión comienza' %} </th>
+                <th> {% trans 'Ciclo lectivo' %} </th>
+                <th> {% trans '¿Es el ciclo actual?' %} </th>
                 {% if request.user.is_superuser %}
                 <th> {% trans 'Acciones' %} </th>
                 {% endif %}
@@ -46,8 +45,6 @@
                     <i class="fas fa-times-circle fa-1-5x danger"></i>
                     {% endif %}
                 </th>
-                <td>{{ session.next_session_begins }}</td>
-
                 {% if request.user.is_superuser %}
                 <td> <div class="update-delete">
                     <a href="{% url 'edit_session' pk=session.pk %}" class="update" title="{% trans 'Editar' %}"><i class="fas fa-pencil-alt"></i></a>
@@ -62,11 +59,11 @@
                   <td></td>
                   <td>
                   <span class="text-danger">
-                    {% trans 'No hay sesiones.' %}
+                    {% trans 'No hay ciclos creados.' %}
                     {% if request.user.is_superuser %}
                     <a href="{% url 'add_session' %}">
                     <i class="primary" style="font-size: 22px;">
-                        {% trans 'Agregar sesión ahora.' %}
+                        {% trans 'Agregar ciclo lectivo ahora.' %}
                     </i>
                     {% endif %}
                     </a>

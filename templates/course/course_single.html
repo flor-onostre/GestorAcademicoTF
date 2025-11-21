@@ -1,19 +1,29 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
 {% load static %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
         {% if request.user.is_student %}
-        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'My courses' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'Mis Materias' %}</a></li>
         {% else %}
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
         {% endif %}
-        <li class="breadcrumb-item"><a href="{% url 'program_detail' course.program.id %}">{{ course.program }}</a></li>
+        {% with course.program as primary_program %}
+            {% if primary_program %}
+                <li class="breadcrumb-item"><a href="{% url 'program_detail' primary_program.id %}">{{ primary_program }}</a></li>
+            {% else %}
+                {% with course.programs.all|first as first_program %}
+                    {% if first_program %}
+                        <li class="breadcrumb-item"><a href="{% url 'program_detail' first_program.id %}">{{ first_program }}</a></li>
+                    {% endif %}
+                {% endwith %}
+            {% endif %}
+        {% endwith %}
         <li class="breadcrumb-item active" aria-current="page">{{ course }}</li>
     </ol>
 </nav>
@@ -23,21 +33,21 @@
         <div class="">
             {% if request.user.is_superuser %}
             <a class="btn btn-sm btn-light" href="{% url 'edit_course' course.slug %}">
-                <i class="fas fa-pencil-alt"></i> {% trans 'Edit course' %}
+                <i class="fas fa-pencil-alt"></i> {% trans 'Editar materia' %}
             </a>
             {% endif %}
             {% if request.user.is_superuser or request.user.is_lecturer %}
             <a class="btn btn-sm btn-primary" href="{% url 'upload_file_view' course.slug %}"><i class="fas fa-plus"></i>
-                {% trans 'Upload new file' %}
+                {% trans 'Subir nuevo archivo' %}
             </a>
             <a class="btn btn-sm btn-primary" href="{% url 'upload_video' course.slug %}"><i class="fas fa-plus"></i>
-                {% trans 'Upload new video' %}
+                {% trans 'Subir nuevo video' %}
             </a>
             {% endif %}
         </div>
         <div class="ms-auto">
             <a class="btn btn-sm btn-warning" href="{% url 'quiz_index' course.slug %}"><i class="fas fa-list"></i>
-                {% trans 'Take a Quiz' %}
+                {% trans 'Rendir evaluación' %}
             </a>
         </div>
     </div>
@@ -52,17 +62,17 @@
 
     <div class="row mb-5">
         <div class="col-md-12 p-0">
-            <p class="form-title m-0">{% trans 'Video Tutorials' %}</p>
+            <p class="form-title m-0">{% trans 'Videos de la materia' %}</p>
             <div class="table-responsive">
                 <table class="table table-shadow table-light table-striped m-0">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>{% trans 'Video Title' %}</th>
-                            <th>{% trans 'Uploaded Date' %}</th>
-                            <th>{% trans 'Get Started' %}</th>
+                            <th>{% trans 'Título del video' %}</th>
+                            <th>{% trans 'Fecha de carga' %}</th>
+                            <th>{% trans 'Comenzar' %}</th>
                             {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <th>{% trans 'Actions' %}</th>
+                            <th>{% trans 'Acciones' %}</th>
                             {% endif %}
                         </tr>
                     </thead>
@@ -79,8 +89,8 @@
                             <th>
                                 <div>
                                     <a class="download-btn" href="{{ video.get_absolute_url }}"
-                                        title="Download to your device">
-                                        <i class="fas fa-play me-1"></i>{% trans 'Play now' %}</a>
+                                        title="{% trans 'Reproducir en el navegador' %}">
+                                        <i class="fas fa-play me-1"></i>{% trans 'Reproducir ahora' %}</a>
                                 </div>
                             </th>
 
@@ -105,11 +115,11 @@
                             <td></td>
                             <td>
                                 <span class="text-danger">
-                                    {% trans 'No video Uploaded.' %}
+                                    {% trans 'No hay videos cargados.' %}
                                     {% if request.user.is_superuser or request.user.is_lecturer %}
                                     <a href="{% url 'upload_video' course.slug %}" class="text-primary">
                                         <i class="primary" style="font-size: 22px;">
-                                            {% trans 'Upload now.' %}
+                                            {% trans 'Subir ahora.' %}
                                         </i>
                                         {% endif %}
                                     </a>
@@ -128,18 +138,18 @@
 
     <div class="row">
         <div class="col-md-12 p-0">
-            <p class="form-title m-0">{% trans 'Documentations' %}</p>
+            <p class="form-title m-0">{% trans 'Material de la materia' %}</p>
             <div class="table-responsive">
                 <table class="table table-shadow table-light table-striped m-0">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>{% trans 'File name' %}</th>
-                            <th>{% trans 'Uploaded Date' %}</th>
-                            <th>{% trans 'Updated Date' %}</th>
-                            <th>{% trans 'Downloads' %}</th>
+                            <th>{% trans 'Nombre del archivo' %}</th>
+                            <th>{% trans 'Fecha de carga' %}</th>
+                            <th>{% trans 'Fecha de actualización' %}</th>
+                            <th>{% trans 'Descargas' %}</th>
                             {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <th>{% trans 'Actions' %}</th>
+                            <th>{% trans 'Acciones' %}</th>
                             {% endif %}
                         </tr>
                     </thead>
@@ -156,8 +166,8 @@
                             <td>{{ file.updated_date|date }}</td>
                             <th>
                                 <div>
-                                    <a class="download-btn" href="{{ file.file.url }}" title="Download to your device">
-                                        <i class="fas fa-download me-1"></i>{% trans 'Download' %}</a>
+                                    <a class="download-btn" href="{{ file.file.url }}" title="{% trans 'Descargar a tu dispositivo' %}">
+                                        <i class="fas fa-download me-1"></i>{% trans 'Descargar' %}</a>
                                 </div>
                             </th>
 
@@ -182,11 +192,11 @@
                             <td></td>
                             <td>
                                 <span class="text-danger">
-                                    {% trans 'No File Uploaded.' %}
+                                    {% trans 'No hay archivos cargados.' %}
                                     {% if request.user.is_superuser or request.user.is_lecturer %}
                                     <a href="{% url 'upload_file_view' course.slug %}" class="text-primary">
                                         <i class="primary" style="font-size: 22px;">
-                                            {% trans 'Upload now.' %}
+                                            {% trans 'Subir ahora.' %}
                                         </i>
                                         {% endif %}
                                     </a>
@@ -206,7 +216,7 @@
 </div>
 
 <div class="site-section mb-5 mt-4">
-    <div class="title-1">{% trans 'Lecturer(s)' %}</div>
+    <div class="title-1">{% trans 'Docente(s)' %}</div>
     <br>
     <br>
     <div class="container-fluid">
@@ -233,7 +243,7 @@
                 </div>
             </div>
             {% empty %}
-            <h6 class="text-muted mt-3">{% trans 'No lecturer assigned for this course' %}</h6>
+            <h6 class="text-muted mt-3">{% trans 'No hay docentes asignados a esta materia' %}</h6>
             {% endfor %}
 
         </div>

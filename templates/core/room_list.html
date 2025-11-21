@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% trans 'Aulas y laboratorios' %} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'floor_list' %}">{% trans 'Pisos y espacios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Aulas y laboratorios' %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold"><i class="fas fa-door-open me-2"></i>{% trans 'Listado de espacios' %}</h4>
+    <a class="btn btn-primary" href="{% url 'room_add' %}"><i class="fas fa-plus me-1"></i>{% trans 'Nuevo espacio' %}</a>
+</div>
+
+{% include 'snippets/messages.html' %}
+
+<form class="mb-3" method="get">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">{% trans 'Filtrar por piso' %}</label>
+            <select name="floor" class="form-select">
+                <option value="">{% trans 'Todos los pisos' %}</option>
+                {% for floor in floors %}
+                    {% with floor_id=floor.id|stringformat:'s' %}
+                    <option value="{{ floor.id }}" {% if selected_floor|default_if_none:'' == floor_id %}selected{% endif %}>
+                        {{ floor.name }} ({{ floor.number }})
+                    </option>
+                    {% endwith %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-secondary" type="submit">{% trans 'Aplicar' %}</button>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-light table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans 'Código' %}</th>
+                        <th>{% trans 'Tipo' %}</th>
+                        <th>{% trans 'Capacidad' %}</th>
+                        <th>{% trans 'Piso' %}</th>
+                        <th>{% trans 'Estado' %}</th>
+                        <th>{% trans 'Acciones' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for room in rooms %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ room.code }}</td>
+                        <td>{{ room.get_room_type_display }}</td>
+                        <td>{{ room.capacity }}</td>
+                        <td>{{ room.floor.name }}</td>
+                        <td>
+                            {% if room.is_enabled %}
+                                <span class="badge bg-success">{% trans 'Habilitada' %}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{% trans 'No habilitada' %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'room_edit' room.pk %}"><i class="fas fa-edit"></i></a>
+                                <a class="btn btn-sm btn-outline-danger" href="{% url 'room_delete' room.pk %}"><i class="fas fa-trash-alt"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">{% trans 'Aún no hay aulas/laboratorios registrados.' %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock content %}

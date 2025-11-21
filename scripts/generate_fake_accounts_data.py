@@ -11,7 +11,7 @@ from django_extensions.management.commands import runscript
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from accounts.models import User, Student, Parent, DepartmentHead, LEVEL, RELATION_SHIP
+from accounts.models import User, Student, DepartmentHead, LEVEL
 from course.models import Program
 
 fake = Faker()
@@ -31,7 +31,6 @@ class UserFactory(DjangoModelFactory):
         address (str): The generated address.
         is_student (bool): Flag indicating if the user is a student.
         is_lecturer (bool): Flag indicating if the user is a lecturer.
-        is_parent (bool): Flag indicating if the user is a parent.
         is_dep_head (bool): Flag indicating if the user is a department head.
     """
 
@@ -47,7 +46,6 @@ class UserFactory(DjangoModelFactory):
     address: str = LazyAttribute(lambda x: fake.address())
     is_student: bool = False
     is_lecturer: bool = False
-    is_parent: bool = False
     is_dep_head: bool = False
 
     @classmethod
@@ -66,9 +64,6 @@ class UserFactory(DjangoModelFactory):
         # Set the appropriate flags based on the user type
         if cls.is_student:
             user.is_student = True
-        elif cls.is_parent:
-            user.is_parent = True
-
         user.save()
         return user
 
@@ -123,47 +118,18 @@ class StudentFactory(DjangoModelFactory):
     program: Program = SubFactory(ProgramFactory)
 
 
-class ParentFactory(DjangoModelFactory):
-    """
-    Factory for creating Parent instances with associated User, Student, and Program.
-
-    Attributes:
-        user (User): The associated User instance.
-        student (Student): The associated Student instance.
-        first_name (str): The generated first name.
-        last_name (str): The generated last name.
-        phone (str): The generated phone number.
-        email (str): The generated email.
-        relation_ship (str): The relationship with the student.
-    """
-
-    class Meta:
-        model = Parent
-
-    user: User = SubFactory(UserFactory, is_parent=True)
-    student: Student = SubFactory(StudentFactory)
-    first_name: str = LazyAttribute(lambda x: fake.first_name())
-    last_name: str = LazyAttribute(lambda x: fake.last_name())
-    phone: str = LazyAttribute(lambda x: fake.phone_number())
-    email: str = LazyAttribute(lambda x: fake.email())
-    relation_ship: str = Iterator([choice[0] for choice in RELATION_SHIP])
-
-
 def generate_fake_accounts_data(
-    num_programs: int, num_students: int, num_parents: int
+    num_programs: int, num_students: int
 ) -> None:
     """
-    Generate fake data for Programs, Students, Parents, and DepartmentHeads.
+    Generate fake data for Programs, Students, and DepartmentHeads.
 
     Args:
         num_programs (int): Number of programs to generate.
         num_students (int): Number of students to generate.
-        num_parents (int): Number of parents to generate.
     """
     programs: List[Program] = ProgramFactory.create_batch(num_programs)
     students: List[Student] = StudentFactory.create_batch(num_students)
-    parents: List[Parent] = ParentFactory.create_batch(num_parents)
 
     print(f"Created {len(programs)} programs.")
     print(f"Created {len(students)} students.")
-    print(f"Created {len(parents)} parents.")

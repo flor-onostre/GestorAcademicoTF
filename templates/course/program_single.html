@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %} {{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %} {{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
 {% load static %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
         {% if request.user.is_student %}
-        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'My courses' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'Mis Materias' %}</a></li>
         {% else %}
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
         {% endif %}
         <li class="breadcrumb-item active" aria-current="page">{{ program.title }}</li>
     </ol>
@@ -19,7 +19,7 @@
 
 {% if request.user.is_superuser %}
 <div class="manage-wrap">
-    <a class="btn btn-sm btn-primary" href="{% url 'course_add' pk=program.pk %}"><i class="fas fa-plus"></i>{% trans 'Add Course' %}</a>
+    <a class="btn btn-sm btn-primary" href="{% url 'course_add' pk=program.pk %}"><i class="fas fa-plus"></i>{% trans 'Agregar materia' %}</a>
 </div>
 {% endif %}
 
@@ -40,15 +40,15 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th> {% trans 'Course Name' %} </th>
-                    <th> {% trans 'Course Code' %} </th>
-                    <th> {% trans 'Cr.Hr' %} </th>
-                    <th> {% trans 'Level' %} </th>
-                    <th> {% trans 'Year' %} </th>
-                    <th> {% trans 'Semester' %} </th>
-                    <th> {% trans 'Current Semester' %} </th>
+                    <th> {% trans 'Nombre de la materia' %} </th>
+                    <th> {% trans 'Código' %} </th>
+                    <th> {% trans 'Créditos' %} </th>
+                    <th> {% trans 'Nivel' %} </th>
+                    <th> {% trans 'Año' %} </th>
+                    <th> {% trans 'Cuatrimestre' %} </th>
+                    <th> {% trans 'Es cuatrimestre actual' %} </th>
                     {% if request.user.is_superuser %}
-                    <th>{% trans 'Action' %}</th>
+                    <th>{% trans 'Acciones' %}</th>
                     {% endif %}
                 </tr>
             </thead>
@@ -93,11 +93,11 @@
                 <tr>
                   <td colspan="9">
                   <span class="text-danger">
-                    {% trans 'No course for this progrm.' %}
+                    {% trans 'No hay materias para esta carrera.' %}
                     {% if request.user.is_superuser %}
                     <a href="{% url 'course_add' pk=program.pk %}" class="text-primary">
                     <i class="primary" style="font-size: 22px;">
-                        {% trans 'Add one now.' %}
+                        {% trans 'Agregar una ahora.' %}
                     </i>
                     {% endif %}
                     </a>

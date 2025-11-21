@@ -9,8 +9,8 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'session_list' %}">{% trans 'Lista de Sesiones' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de Sesión' %}</li>
+      <li class="breadcrumb-item"><a href="{% url 'session_list' %}">{% trans 'Lista de ciclos lectivos' %}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de ciclo lectivo' %}</li>
     </ol>
 </nav>
 
@@ -19,7 +19,7 @@
 <div class="row">
     <div class="col-md-6 mx-auto">
         <div class="card pb-3">
-            <p class="form-title">{% trans 'Formulario para agregar o actualizar Sesió' %}</p>
+            <p class="form-title">{% trans 'Formulario para agregar o actualizar ciclo lectivo' %}</p>
             <div class="container"><br>
                 <form action="" method="POST">{% csrf_token %}
                     {{ form|crispy }}

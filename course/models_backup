@@ -1,0 +1,462 @@
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import (
+    FileExtensionValidator,
+    MaxValueValidator,
+    MinValueValidator,
+)
+from django.db import models
+from django.db.models import Q
+from django.db.models.signals import pre_save, post_delete, post_save
+from django.dispatch import receiver
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
+
+from core.models import ActivityLog, Room, Semester
+from core.utils import unique_slug_generator
+
+
+class ProgramManager(models.Manager):
+    def search(self, query=None):
+        queryset = self.get_queryset()
+        if query:
+            or_lookup = Q(title__icontains=query) | Q(summary__icontains=query)
+            queryset = queryset.filter(or_lookup).distinct()
+        return queryset
+
+
+class University(models.Model):
+    name = models.CharField(max_length=150, unique=True)
+    short_name = models.CharField(max_length=30, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Universidad")
+        verbose_name_plural = _("Universidades")
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.short_name or self.name
+
+
+class Program(models.Model):
+    TECNICATURA = "TEC"
+    LICENCIATURA = "LIC"
+    PROGRAM_TYPES = (
+        (TECNICATURA, _("Tecnicatura")),
+        (LICENCIATURA, _("Licenciatura")),
+    )
+
+    university = models.ForeignKey(
+        University,
+        on_delete=models.PROTECT,
+        related_name="programs",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=150, unique=True)
+    summary = models.TextField(blank=True)
+    coordinators = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="programs_coordinated",
+        limit_choices_to={"role": "COORDINATOR"},
+        help_text=_("Seleccion� uno o m�s coordinadores responsables de la carrera."),
+    )
+    )
+        max_length=3, choices=PROGRAM_TYPES, default=TECNICATURA
+    )
+    allows_promotion = models.BooleanField(
+        default=True,
+        help_text=_("Indica si la carrera permite promocionar materias sin final."),
+    )
+    pass_score = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        default=4.0,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+        help_text=_("Nota mínima para aprobar (0 a 10)."),
+    )
+    promotion_score = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        default=6.0,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+        help_text=_("Nota mínima para promocionar (0 a 10)."),
+    )
+    min_passing_attendance = models.PositiveIntegerField(
+        default=75,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text=_("Porcentaje de asistencia requerido para aprobar."),
+    )
+    min_promotion_attendance = models.PositiveIntegerField(
+        default=80,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text=_("Porcentaje de asistencia requerido para promocionar."),
+    )
+
+    objects = ProgramManager()
+
+    def __str__(self):
+        return f"{self.title}"
+
+    def get_absolute_url(self):
+        return reverse("program_detail", kwargs={"pk": self.pk})
+
+
+@receiver(post_save, sender=Program)
+def log_program_save(sender, instance, created, **kwargs):
+    verb = "creada" if created else "actualizada"
+    ActivityLog.objects.create(message=_(f"La carrera '{instance}' ha sido {verb}."))
+
+
+@receiver(post_delete, sender=Program)
+def log_program_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(message=_(f"La carrera '{instance}' ha sido eliminada."))
+
+
+class CourseManager(models.Manager):
+    def search(self, query=None):
+        queryset = self.get_queryset()
+        if query:
+            or_lookup = (
+                Q(title__icontains=query)
+                | Q(summary__icontains=query)
+                | Q(code__icontains=query)
+                | Q(slug__icontains=query)
+            )
+            queryset = queryset.filter(or_lookup).distinct()
+        return queryset
+
+
+class Course(models.Model):
+    slug = models.SlugField(unique=True, blank=True)
+    title = models.CharField(max_length=200)
+    code = models.CharField(max_length=200, unique=True)
+    credit = models.IntegerField(default=0)
+    summary = models.TextField(max_length=200, blank=True)
+    program = models.ForeignKey(Program, on_delete=models.CASCADE)
+    level = models.CharField(max_length=25, choices=settings.LEVEL_CHOICES)
+    year = models.IntegerField(choices=settings.YEARS, default=1)
+    semester = models.CharField(choices=settings.SEMESTER_CHOICES, max_length=200)
+    is_elective = models.BooleanField(default=False)
+
+    objects = CourseManager()
+
+    def __str__(self):
+        return f"{self.title} ({self.code})"
+
+    def get_absolute_url(self):
+        return reverse("course_detail", kwargs={"slug": self.slug})
+
+    @property
+    def is_current_semester(self):
+
+        current_semester = Semester.objects.filter(is_current_semester=True).first()
+        return self.semester == current_semester.semester if current_semester else False
+
+
+@receiver(pre_save, sender=Course)
+def course_pre_save_receiver(sender, instance, **kwargs):
+    if not instance.slug:
+        instance.slug = unique_slug_generator(instance)
+
+
+@receiver(post_save, sender=Course)
+def log_course_save(sender, instance, created, **kwargs):
+    verb = "creada" if created else "actualizada"
+    ActivityLog.objects.create(message=_(f"La materia '{instance}' ha sido {verb}."))
+
+
+@receiver(post_delete, sender=Course)
+def log_course_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(message=_(f"La materia '{instance}' ha sido eliminada."))
+
+
+class CourseAllocation(models.Model):
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="allocations",
+        null=True,
+        blank=True,
+        help_text=_("Carrera para la cual se realiza la asignación."),
+    )
+    lecturer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="allocated_lecturer",
+    )
+    courses = models.ManyToManyField(Course, related_name="allocated_course")
+    session = models.ForeignKey(
+        "core.Session", on_delete=models.CASCADE, blank=True, null=True
+    )
+
+    def __str__(self):
+        return self.lecturer.get_full_name
+
+    def clean(self):
+        super().clean()
+        if self.program and self.courses.exists():
+            invalid_courses = self.courses.exclude(program=self.program)
+            if invalid_courses.exists():
+                raise ValidationError(
+                    _("Todas las materias deben pertenecer a la carrera seleccionada.")
+                )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse("edit_allocated_course", kwargs={"pk": self.pk})
+
+
+class Upload(models.Model):
+    title = models.CharField(max_length=100)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    file = models.FileField(
+        upload_to="course_files/",
+        help_text=_(
+            "Archivos válidos: pdf, docx, doc, xls, xlsx, ppt, pptx, zip, rar, 7zip"
+        ),
+        validators=[
+            FileExtensionValidator(
+                [
+                    "pdf",
+                    "docx",
+                    "doc",
+                    "xls",
+                    "xlsx",
+                    "ppt",
+                    "pptx",
+                    "zip",
+                    "rar",
+                    "7zip",
+                ]
+            )
+        ],
+    )
+    updated_date = models.DateTimeField(auto_now=True)
+    upload_time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title}"
+
+    def get_extension_short(self):
+        ext = self.file.name.split(".")[-1].lower()
+        if ext in ("doc", "docx"):
+            return "word"
+        elif ext == "pdf":
+            return "pdf"
+        elif ext in ("xls", "xlsx"):
+            return "excel"
+        elif ext in ("ppt", "pptx"):
+            return "powerpoint"
+        elif ext in ("zip", "rar", "7zip"):
+            return "archive"
+        return "file"
+
+    def delete(self, *args, **kwargs):
+        self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
+
+@receiver(post_save, sender=Upload)
+def log_upload_save(sender, instance, created, **kwargs):
+    if created:
+        message = _(
+            f"Se subió el archivo '{instance.title}' a la materia '{instance.course}'."
+        )
+    else:
+        message = _(
+            f"Se actualizó el archivo '{instance.title}' de la materia '{instance.course}'."
+        )
+    ActivityLog.objects.create(message=message)
+
+
+@receiver(post_delete, sender=Upload)
+def log_upload_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(
+        message=_(
+            f"Se eliminó el archivo '{instance.title}' de la materia '{instance.course}'."
+        )
+    )
+
+
+class UploadVideo(models.Model):
+    title = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True, blank=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    video = models.FileField(
+        upload_to="course_videos/",
+        help_text=_("Formatos de video válidos: mp4, mkv, wmv, 3gp, f4v, avi, mp3"),
+        validators=[
+            FileExtensionValidator(["mp4", "mkv", "wmv", "3gp", "f4v", "avi", "mp3"])
+        ],
+    )
+    summary = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title}"
+
+    def get_absolute_url(self):
+        return reverse(
+            "video_single", kwargs={"slug": self.course.slug, "video_slug": self.slug}
+        )
+
+    def delete(self, *args, **kwargs):
+        self.video.delete(save=False)
+        super().delete(*args, **kwargs)
+
+
+@receiver(pre_save, sender=UploadVideo)
+def video_pre_save_receiver(sender, instance, **kwargs):
+    if not instance.slug:
+        instance.slug = unique_slug_generator(instance)
+
+
+@receiver(post_save, sender=UploadVideo)
+def log_uploadvideo_save(sender, instance, created, **kwargs):
+    if created:
+        message = _(
+            f"Se subió el video '{instance.title}' a la materia '{instance.course}'."
+        )
+    else:
+        message = _(
+            f"Se actualizó el video '{instance.title}' de la materia '{instance.course}'."
+        )
+    ActivityLog.objects.create(message=message)
+
+
+@receiver(post_delete, sender=UploadVideo)
+def log_uploadvideo_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(
+        message=_(
+            f"Se eliminó el video '{instance.title}' de la materia '{instance.course}'."
+        )
+    )
+
+
+class CourseOffer(models.Model):
+    """NOTE: Only department head can offer semester courses"""
+
+    dep_head = models.ForeignKey("accounts.DepartmentHead", on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.dep_head)
+
+
+class Turn(models.Model):
+    MORNING = "MORNING"
+    AFTERNOON = "AFTERNOON"
+    EVENING = "EVENING"
+    DEFAULT_TURNS = (
+        (MORNING, _("Mañana")),
+        (AFTERNOON, _("Tarde")),
+        (EVENING, _("Noche")),
+    )
+
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Turno")
+        verbose_name_plural = _("Turnos")
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class CourseSection(models.Model):
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="sections"
+    )
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="sections",
+        help_text=_("Carrera responsable de la comisión."),
+    )
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.PROTECT,
+        related_name="sections",
+    )
+    turn = models.ForeignKey(
+        Turn,
+        on_delete=models.PROTECT,
+        related_name="sections",
+    )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sections",
+    )
+    teachers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="teaching_sections",
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    days_of_week = models.JSONField(
+        default=list,
+        help_text=_("Lista de días de cursada (ej: ['Lunes','Miércoles'])."),
+        blank=True,
+    )
+    max_capacity = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Comisión")
+        verbose_name_plural = _("Comisiones")
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.course} - {self.turn} ({self.semester})"
+
+    def clean(self):
+        super().clean()
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError(_("La fecha de inicio no puede ser posterior a la de fin."))
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError(_("La hora de inicio debe ser menor que la de finalización."))
+        if self.program_id and self.course and self.course.program_id != self.program_id:
+            raise ValidationError(_("La comisión debe pertenecer a la misma carrera que la materia."))
+
+    def save(self, *args, **kwargs):
+        if not self.program_id and self.course_id:
+            self.program = self.course.program
+        super().save(*args, **kwargs)
+
+
+@receiver(post_save, sender=CourseSection)
+def log_section_save(sender, instance, created, **kwargs):
+    verb = "creada" if created else "actualizada"
+    ActivityLog.objects.create(
+        message=_(
+            f"Se {verb} la comisión de '{instance.course}' para el turno '{instance.turn}'."
+        )
+    )
+
+
+@receiver(post_delete, sender=CourseSection)
+def log_section_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(
+        message=_(
+            f"Se eliminó la comisión de '{instance.course}' para el turno '{instance.turn}'."
+        )
+    )

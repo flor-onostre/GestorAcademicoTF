@@ -1,12 +1,10 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load i18n crispy_forms_tags static %}
 {% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
-{% load crispy_forms_tags %}
-{% load static %}
 
 {% block content %}
 
-<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+<nav style="--bs-breadcrumb-divider: '>'" aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
         <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
@@ -19,6 +17,13 @@
 <br>
 
 {% include 'snippets/messages.html' %}
+{% if form.non_field_errors %}
+<div class="alert alert-danger">
+    {% for err in form.non_field_errors %}
+    <div>{{ err }}</div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <form action="" method="POST">{% csrf_token %}
     <div class="row">
@@ -29,6 +34,7 @@
                     {{ form.title|as_crispy_field }}
                     {{ form.code|as_crispy_field }}
                     {{ form.summary|as_crispy_field }}
+                    {{ form.prerequisites|as_crispy_field }}
                 </div>
             </div>
         </div>
@@ -36,12 +42,10 @@
             <div class="card">
                 <p class="form-title">{% trans 'Otra información' %}</p>
                 <div class="p-3">
-                    {{ form.program|as_crispy_field }}
+                    {{ form.programs|as_crispy_field }}
                     {{ form.credit|as_crispy_field }}
-                    {{ form.year|as_crispy_field }}
-                    {{ form.semester|as_crispy_field }}
-                    {{ form.level|as_crispy_field }}
                     {{ form.is_elective|as_crispy_field }}
+                    {{ form.evaluation_mode|as_crispy_field }}
                 </div>
             </div>
         </div>

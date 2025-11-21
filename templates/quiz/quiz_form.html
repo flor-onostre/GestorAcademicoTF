@@ -6,16 +6,16 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
         <li class="breadcrumb-item"><a href="{% url 'program_detail' course.program.id %}">{{ course.program }}</a></li>
         <li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Quizzes' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Quiz Form' %}</li>
+        <li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Cuestionarios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de evaluación' %}</li>
     </ol>
 </nav>
 
-<div class="title-1">{% trans 'Quiz form for' %} {{ course|truncatechars:15 }}</div>
+<div class="title-1">{% trans 'Formulario de evaluación para' %} {{ course|truncatechars:15 }}</div>
 <br><br>
 
 <div class="container">

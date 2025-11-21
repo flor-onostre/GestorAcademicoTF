@@ -8,21 +8,27 @@ from django.template.loader import get_template, render_to_string
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from django_filters.views import FilterView
-from xhtml2pdf import pisa
+
+try:
+    from xhtml2pdf import pisa
+except ImportError:  # pragma: no cover
+    pisa = None
 
 from accounts.decorators import admin_required
 from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
-    ParentAddForm,
     ProfileUpdateForm,
     ProgramUpdateForm,
     StaffAddForm,
+    StaffUpdateForm,
     StudentAddForm,
+    StudentUpdateForm,
 )
-from accounts.models import Parent, Student, User
+from accounts.models import Student, User
 from core.models import Semester, Session
 from course.models import Course
 from result.models import TakenCourse
+
 
 # ########################################################
 # Utility Functions
@@ -31,6 +37,8 @@ from result.models import TakenCourse
 
 def render_to_pdf(template_name, context):
     """Render a given template to PDF format."""
+    if pisa is None:
+        return HttpResponse("Generación de PDF no disponible en este entorno.")
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'filename="profile.pdf"'
     template = render_to_string(template_name, context)
@@ -94,23 +102,49 @@ def profile(request):
 
     if request.user.is_student:
         student = get_object_or_404(Student, student__pk=request.user.id)
-        parent = Parent.objects.filter(student=student).first()
         courses = TakenCourse.objects.filter(
             student__student__id=request.user.id, course__level=student.level
         )
-        context.update(
-            {
-                "parent": parent,
-                "courses": courses,
-                "level": student.level,
-            }
-        )
+        context.update({"courses": courses, "level": student.level})
         return render(request, "accounts/profile.html", context)
 
-    # For superuser or other staff
     staff = User.objects.filter(is_lecturer=True)
     context["staff"] = staff
     return render(request, "accounts/profile.html", context)
+
+
+@login_required
+def profile_update(request):
+    """Allow current user to update their profile information."""
+    if request.method == "POST":
+        form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Perfil actualizado correctamente.")
+            return redirect("profile")
+        messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = ProfileUpdateForm(instance=request.user)
+    return render(
+        request,
+        "accounts/profile.html",
+        {"title": "Editar perfil", "form": form, "is_profile_form": True},
+    )
+
+
+@login_required
+@admin_required
+def admin_panel(request):
+    """Custom admin dashboard with quick stats."""
+    student_count = User.objects.filter(is_student=True).count()
+    lecturer_count = User.objects.filter(is_lecturer=True).count()
+    staff_count = User.objects.filter(role__in=[choice[0] for choice in User.Roles.staff_choices()]).count()
+    context = {
+        "student_count": student_count,
+        "lecturer_count": lecturer_count,
+        "staff_count": staff_count,
+    }
+    return render(request, "setting/admin_panel.html", context)
 
 
 @login_required
@@ -128,84 +162,33 @@ def profile_single(request, user_id):
 
     context = {
         "title": user.get_full_name,
-        "user": user,
         "current_session": current_session,
         "current_semester": current_semester,
+        "user": user,
     }
 
     if user.is_lecturer:
         courses = Course.objects.filter(
-            allocated_course__lecturer__pk=user_id, semester=current_semester
+            allocated_course__lecturer__pk=user.id, semester=current_semester
         )
-        context.update(
-            {
-                "user_type": "Docente",
-                "courses": courses,
-            }
-        )
-    elif user.is_student:
-        student = get_object_or_404(Student, student__pk=user_id)
+        context["courses"] = courses
+        return render(request, "accounts/profile_single.html", context)
+
+    if user.is_student:
+        student = get_object_or_404(Student, student__pk=user.id)
         courses = TakenCourse.objects.filter(
-            student__student__id=user_id, course__level=student.level
+            student__student__id=user.id, course__level=student.level
         )
-        context.update(
-            {
-                "user_type": "Estudiante",
-                "courses": courses,
-                "student": student,
-            }
-        )
-    else:
-        context["user_type"] = "Superuser"
+        context.update({"courses": courses, "level": student.level})
+        return render(request, "accounts/profile_single.html", context)
 
-    if request.GET.get("download_pdf"):
-        return render_to_pdf("pdf/profile_single.html", context)
-
+    staff = User.objects.filter(is_lecturer=True)
+    context["staff"] = staff
     return render(request, "accounts/profile_single.html", context)
 
 
-@login_required
-@admin_required
-def admin_panel(request):
-    return render(request, "setting/admin_panel.html", {"title": "Panel de administración"})
-
-
 # ########################################################
-# Settings Views
-# ########################################################
-
-
-@login_required
-def profile_update(request):
-    if request.method == "POST":
-        form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Tu perfil se actualizó correctamente.")
-            return redirect("profile")
-        messages.error(request, "Corregí los errores indicados abajo.")
-    else:
-        form = ProfileUpdateForm(instance=request.user)
-    return render(request, "setting/profile_info_change.html", {"form": form})
-
-
-@login_required
-def change_password(request):
-    if request.method == "POST":
-        form = PasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, "¡Tu contraseña se actualizó correctamente!")
-            return redirect("profile")
-        messages.error(request, "Corregí los errores indicados abajo.")
-    else:
-        form = PasswordChangeForm(request.user)
-    return render(request, "setting/password_change.html", {"form": form})
-
-
-# ########################################################
-# Staff (Lecturer) Views
+# Staff Views
 # ########################################################
 
 
@@ -215,45 +198,48 @@ def staff_add_view(request):
     if request.method == "POST":
         form = StaffAddForm(request.POST)
         if form.is_valid():
-            lecturer = form.save()
-            full_name = lecturer.get_full_name
-            email = lecturer.email
+            staff = form.save()
+            full_name = staff.get_full_name
+            email = staff.email
             messages.success(
                 request,
-                f"Se creó la cuenta del docente {full_name}. "
+                f"Se creó la cuenta de {full_name}. "
                 f"En minutos se enviarán las credenciales a {email}.",
             )
             return redirect("lecturer_list")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = StaffAddForm()
-    return render(
-        request, "accounts/add_staff.html", {"title": "Agregar docente", "form": form}
-    )
+    return render(request, "accounts/add_staff.html", {"form": form})
 
 
 @login_required
 @admin_required
 def edit_staff(request, pk):
-    lecturer = get_object_or_404(User, is_lecturer=True, pk=pk)
+    staff_user = get_object_or_404(User, pk=pk, is_lecturer=True)
     if request.method == "POST":
-        form = ProfileUpdateForm(request.POST, request.FILES, instance=lecturer)
+        form = StaffUpdateForm(request.POST, request.FILES, instance=staff_user)
         if form.is_valid():
             form.save()
-            full_name = lecturer.get_full_name
-            messages.success(request, f"Docente {full_name} actualizado correctamente.")
+            full_name = staff_user.get_full_name
+            messages.success(
+                request, f"Docente {full_name} actualizado correctamente."
+            )
             return redirect("lecturer_list")
-        messages.error(request, "Corregí el error indicado abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
-        form = ProfileUpdateForm(instance=lecturer)
+        form = StaffUpdateForm(instance=staff_user)
     return render(
-        request, "accounts/edit_lecturer.html", {"title": "Editar docente", "form": form}
+        request,
+        "accounts/add_staff.html",
+        {"title": "Editar docente", "form": form},
     )
 
 
 @method_decorator([login_required, admin_required], name="dispatch")
 class LecturerFilterView(FilterView):
-    filterset_class = LecturerFilter
     queryset = User.objects.filter(is_lecturer=True)
+    filterset_class = LecturerFilter
     template_name = "accounts/lecturer_list.html"
     paginate_by = 10
 
@@ -273,6 +259,8 @@ def render_lecturer_pdf_list(request):
     response["Content-Disposition"] = 'filename="lista_docentes.pdf"'
     template = get_template(template_path)
     html = template.render(context)
+    if pisa is None:
+        return HttpResponse("Generación de PDF no disponible.")
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
         return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
@@ -322,7 +310,7 @@ def student_add_view(request):
 def edit_student(request, pk):
     student_user = get_object_or_404(User, is_student=True, pk=pk)
     if request.method == "POST":
-        form = ProfileUpdateForm(request.POST, request.FILES, instance=student_user)
+        form = StudentUpdateForm(request.POST, request.FILES, instance=student_user)
         if form.is_valid():
             form.save()
             full_name = student_user.get_full_name
@@ -330,7 +318,7 @@ def edit_student(request, pk):
             return redirect("student_list")
         messages.error(request, "Corregí el error indicado abajo.")
     else:
-        form = ProfileUpdateForm(instance=student_user)
+        form = StudentUpdateForm(instance=student_user)
     return render(
         request, "accounts/edit_student.html", {"title": "Editar estudiante", "form": form}
     )
@@ -359,6 +347,8 @@ def render_student_pdf_list(request):
     response["Content-Disposition"] = 'filename="lista_estudiantes.pdf"'
     template = get_template(template_path)
     html = template.render(context)
+    if pisa is None:
+        return HttpResponse("Generación de PDF no disponible.")
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
         return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
@@ -398,16 +388,21 @@ def edit_student_program(request, pk):
 
 
 # ########################################################
-# Parent Views
+# Password Change
 # ########################################################
 
 
-@method_decorator([login_required, admin_required], name="dispatch")
-class ParentAdd(CreateView):
-    model = Parent
-    form_class = ParentAddForm
-    template_name = "accounts/parent_form.html"
-
-    def form_valid(self, form):
-        messages.success(self.request, "Familiar agregado correctamente.")
-        return super().form_valid(form)
+@login_required
+def change_password(request):
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "La contraseña se actualizó correctamente.")
+            return redirect("change_password")
+        else:
+            messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = PasswordChangeForm(user=request.user)
+    return render(request, "setting/password_change.html", {"form": form})

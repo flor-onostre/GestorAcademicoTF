@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'floor_list' %}">{% trans 'Pisos y espacios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% include 'snippets/messages.html' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Nombre del piso' %}</label>
+                        {{ form.name }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Número' %}</label>
+                        {{ form.number }}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">{% trans 'Descripción' %}</label>
+                {{ form.description }}
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>{% trans 'Guardar' %}</button>
+            <a class="btn btn-light" href="{% url 'floor_list' %}">{% trans 'Cancelar' %}</a>
+        </form>
+    </div>
+</div>
+{% endblock content %}

@@ -1,38 +1,38 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Programs' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Carreras' %}</li>
     </ol>
 </nav>
 
 {% if request.user.is_superuser %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'add_program' %}"><i class="fas fa-plus"></i>{% trans 'Add Program' %}</a>
+    <a class="btn btn-primary" href="{% url 'add_program' %}"><i class="fas fa-plus"></i>{% trans 'Agregar carrera' %}</a>
 </div>
 {% endif %}
 
-<div class="title-1"><i class="fas fa-book-open"></i>{% trans 'Program List' %}</div>
+<div class="title-1"><i class="fas fa-book-open"></i>{% trans 'Listado de carreras' %}</div>
 <br><br>
 
 {% include 'snippets/messages.html' %}
 {% include 'snippets/filter_form.html' %}
 
-<div class="table-responsive table-shadow table-light table-striped m-0 mt-4">
+<div class="table-responsive table-shadow table-light table-striped m-0 mt-4" style="overflow: visible;">
     <div class="table-shadow">
         <table class="table table-light">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>{% trans 'Program Name' %}</th>
-                    <th>{% trans 'Summary' %}</th>
+                    <th>{% trans 'Nombre de la carrera' %}</th>
+                    <th>{% trans 'Universidad' %}</th>
                     {% if request.user.is_superuser %}
-                    <th>{% trans 'Action' %}</th>
+                    <th>{% trans 'Acción' %}</th>
                     {% endif %}
                 </tr>
             </thead>
@@ -45,16 +45,16 @@
                             {{ program.title}}
                         </a>
                     </td>
-                    <td>{{ program.summary }} </td>
+                    <td>{{ program.university|default:_("Sin universidad") }} </td>
                     {% if request.user.is_superuser %}
                     <td>
                         <div class="dropdown">
-                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                 <i class="fa fa-ellipsis-vertical"></i>
                             </button>
-                            <ul class="dropdown-menu">
-                              <li><a class="dropdown-item" href="{% url 'edit_program' pk=program.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Update' %}</a></li>
-                              <li><a class="dropdown-item text-danger" href="{% url 'program_delete' pk=program.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                              <li><a class="dropdown-item" href="{% url 'edit_program' pk=program.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Editar' %}</a></li>
+                              <li><a class="dropdown-item text-danger" href="{% url 'program_delete' pk=program.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Eliminar' %}</a></li>
                             </ul>
                         </div>
                     </td>
@@ -66,11 +66,11 @@
                   <td></td>
                   <td>
                   <span class="text-danger">
-                    {% trans 'No program.' %}
+                    {% trans 'No hay carreras.' %}
                     {% if request.user.is_superuser %}
                     <a href="{% url 'add_program' %}">
                     <i class="primary" style="font-size: 22px;">
-                        {% trans 'Add program now.' %}
+                        {% trans 'Agregar carrera ahora.' %}
                     </i>
                     {% endif %}
                     </a>

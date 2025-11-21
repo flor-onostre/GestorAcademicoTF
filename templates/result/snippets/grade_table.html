@@ -1,0 +1,73 @@
+{% load i18n %}
+<div class="table-responsive mb-4">
+  <div class="table-title"><u>{{ semester_label }}:</u></div>
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{% trans 'Materia' %}</th>
+        <th>{% trans 'Código' %}</th>
+        <th>{% trans 'Créditos' %}</th>
+        <th>{% trans 'Nota' %}</th>
+        <th>{% trans 'Puntos' %}</th>
+        <th>{% trans 'Estado final' %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+        {% if course.course.semester == semester_key %}
+        <tr>
+          <th>{{ forloop.counter }}</th>
+          <td>
+            <a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a><br>
+            <span class="small text-muted">{{ course.course.get_evaluation_mode_display }}</span>
+          </td>
+          <td>{{ course.course.code }}</td>
+          <td>{{ course.course.credit }}</td>
+          <td>{{ course.grade|default:"-" }}</td>
+          <td>{{ course.point }}</td>
+          <td>
+            {% with status=course.completion_status %}
+              {% if status == 'PROMOTED' %}
+                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans 'Promocionado' %}</span>
+              {% elif status == 'FINAL' %}
+                <span class="badge bg-warning text-dark"><i class="fas fa-clipboard-list me-1"></i>{% trans 'Debe rendir final' %}</span>
+              {% elif status == 'RETAKE' %}
+                <span class="badge bg-danger"><i class="fas fa-redo me-1"></i>{% trans 'Debe recursar' %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans 'En proceso' %}</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+        {% endif %}
+      {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">{% trans 'No se registran materias en este cuatrimestre.' %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="table-light">
+        <th colspan="6" class="text-end">{% trans 'Créditos del cuatrimestre:' %}</th>
+        <th>{{ credit_total }}</th>
+      </tr>
+      <tr class="table-dark text-white">
+        <th colspan="6" class="text-end">
+          {% if semester_key == "First" %}
+            {% trans 'Promedio del primer cuatrimestre:' %}
+          {% else %}
+            {% trans 'Promedio del segundo cuatrimestre:' %}
+          {% endif %}
+        </th>
+        <th>
+          {% for result in results %}
+            {% if result.semester == semester_key %}
+              {{ result.gpa }}
+            {% endif %}
+          {% endfor %}
+        </th>
+      </tr>
+    </tfoot>
+  </table>
+</div>

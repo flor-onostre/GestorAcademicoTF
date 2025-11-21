@@ -23,7 +23,6 @@ from .views import (
     edit_student,
     delete_student,
     edit_student_program,
-    ParentAdd,
     validate_username,
     register,
     render_lecturer_pdf_list,  # new
@@ -53,7 +52,6 @@ urlpatterns = [
         edit_student_program,
         name="student_program_edit",
     ),
-    path("parents/add/", ParentAdd.as_view(), name="add_parent"),
     path("ajax/validate-username/", validate_username, name="validate_username"),
     path("register/", register, name="register"),
     # paths to pdf

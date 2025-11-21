@@ -29,7 +29,6 @@
                 <th> {% trans 'Cuatrimestre' %} </th>
                 <th> {% trans '¿Es el cuatrimestre actual?' %} </th>
                 <th> {% trans 'Sesión' %} </th>
-                <th> {% trans 'Próximo cuatrimestre comienza' %} </th>
                 {% if request.user.is_superuser %}
                 <th> {% trans 'Acciones' %} </th>
                 {% endif %}
@@ -39,7 +38,7 @@
             {% for semester in semesters %}
             <tr>
                 <td> {{ forloop.counter }}.</td>
-                <td>{{ semester.semester }}</td>
+                <td>{{ semester.get_semester_display }}</td>
                 <th>
                     {% if semester.is_current_semester == False %}
                     <i class="fas fa-times-circle fa-1-5x danger"></i>
@@ -49,8 +48,6 @@
                     {% endif %}
                 </th>
                 <td>{{ semester.session }}</td>
-                <td>{{ semester.next_semester_begins }}</td>
-
                 {% if request.user.is_superuser %}
                 <td>
                     <div class="update-delete">

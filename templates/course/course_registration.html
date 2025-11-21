@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
 {% load static %}
 
 {% load crispy_forms_tags %}
@@ -9,12 +9,12 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Course Registration' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Agregar o Abandonar Materias' %}</li>
     </ol>
 </nav>
 
-<p class="title-1">{% trans 'Course Add' %} &amp; {% trans 'Drop' %}</p>
+<p class="title-1">{% trans 'Agregar Materias' %} &amp; {% trans 'Abandonar Materias' %}</p>
 
 {% include 'snippets/messages.html' %}
 
@@ -22,8 +22,8 @@
 {% if is_calender_on == False %}
 
 <div class="alert bg-danger">
-    <h1 class="text-light text-center">{% trans 'Calender is off' %}</h1>
-    <h5 class="text-light text-center">{% trans 'Check the university calender' %}</h5>
+    <h1 class="text-light text-center">{% trans 'El calendario está inactivo' %}</h1>
+    <h5 class="text-light text-center">{% trans 'Revisá el calendario académico' %}</h5>
 </div>
 
 {% else %}
@@ -32,25 +32,25 @@
 
 <form action="{% url 'course_registration' %}" method="POST">{% csrf_token %}
     <div class="col-md-12 p-0 bg-white">
-        <p class="form-title fw-bold">{% trans 'Course Add' %}</p>
+        <p class="form-title fw-bold">{% trans 'Agregar Materias' %}</p>
         <div class="container">
             <div class="d-flex justify-content-between mb-3">
-                <button title="{% trans 'Save Score' %}" type="submit" class="btn btn-primary"><i class="fa fa-plus"></i> {% trans 'Add Selected' %}</button>
+                <button title="{% trans 'Guardar selección' %}" type="submit" class="btn btn-primary"><i class="fa fa-plus"></i> {% trans 'Agregar seleccionadas' %}</button>
             </div>
 
             <div class="table-responsive p-0 px-2 mt-2">
-                <div class="table-title"><u>{% trans 'First Semester:' %}</u></div>
+                <div class="table-title"><u>{% trans 'Primer Cuatrimestre:' %}</u></div>
                 <div class="table-shadow">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>{% trans 'Mark' %}</th>
-                                <th>{% trans 'Course Code' %}</th>
-                                <th>{% trans 'Course Title' %}</th>
-                                <th>{% trans 'Cr.Hr(s)' %}</th>
-                                <th>{% trans 'Year' %}</th>
-                                <th>{% trans 'Classification' %}</th>
-                                <th>{% trans 'Elective Group' %}</th>
+                                <th>{% trans 'Seleccionar' %}</th>
+                                <th>{% trans 'Código' %}</th>
+                                <th>{% trans 'Materia' %}</th>
+                                <th>{% trans 'Créditos' %}</th>
+                                <th>{% trans 'Año' %}</th>
+                                <th>{% trans 'Tipo' %}</th>
+                                <th>{% trans 'Grupo optativo' %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -65,9 +65,9 @@
                                 <td>{{ course.credit }}</td>
                                 <td>{{ course.year }}</td>
                                 {% if course.is_elective %}
-                                <td>{% trans 'Elective' %}</td>
+                                <td>{% trans 'Optativa' %}</td>
                                 {% else %}
-                                <td>{% trans 'Core' %}</td>
+                                <td>{% trans 'Obligatoria' %}</td>
                                 {% endif %}
                                 <th>-</th>
                             </tr>
@@ -79,7 +79,7 @@
                                 <td></td>
                                 <td>
                                     <span class="text-danger">
-                                        {% trans 'No Course.' %}
+                                        {% trans 'No hay materias.' %}
                                     </span>
                                 </td>
                                 <td></td>
@@ -93,7 +93,7 @@
                                 <td></td>
                                 <td></td>
                                 <td></td>
-                                <td><b>{% trans 'First semester Credit(s):' %}</b> {{ total_first_semester_credit }} </td>
+                                <td><b>{% trans 'Créditos del primer cuatrimestre:' %}</b> {{ total_first_semester_credit }} </td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -102,18 +102,18 @@
             </div>
 
             <div class="table-responsive p-0 px-2 mt-2">
-                <div class="table-title"><u>{% trans 'Second Semester:' %}</u></div>
+                <div class="table-title"><u>{% trans 'Segundo Cuatrimestre:' %}</u></div>
                 <div class="table-shadow">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>{% trans 'Mark' %}</th>
-                                <th>{% trans 'Course Code' %}</th>
-                                <th>{% trans 'Course Title' %}</th>
-                                <th>{% trans 'Cr.Hr(s)' %}</th>
-                                <th>{% trans 'Year' %}</th>
-                                <th>{% trans 'Classification' %}</th>
-                                <th>{% trans 'Elective Group' %}</th>
+                                <th>{% trans 'Seleccionar' %}</th>
+                                <th>{% trans 'Código' %}</th>
+                                <th>{% trans 'Materia' %}</th>
+                                <th>{% trans 'Créditos' %}</th>
+                                <th>{% trans 'Año' %}</th>
+                                <th>{% trans 'Tipo' %}</th>
+                                <th>{% trans 'Grupo optativo' %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -128,9 +128,9 @@
                                 <td>{{ course.credit }}</td>
                                 <td>{{ course.year }}</td>
                                 {% if course.is_elective %}
-                                <td>{% trans 'Elective' %}</td>
+                                <td>{% trans 'Optativa' %}</td>
                                 {% else %}
-                                <td>{% trans 'Core' %}</td>
+                                <td>{% trans 'Obligatoria' %}</td>
                                 {% endif %}
                                 <th>-</th>
                             </tr>
@@ -142,7 +142,7 @@
                                 <td></td>
                                 <td>
                                     <span class="text-danger">
-                                        {% trans 'No Course.' %}
+                                        {% trans 'No hay materias.' %}
                                     </span>
                                 </td>
                                 <td></td>
@@ -156,17 +156,17 @@
                                 <td></td>
                                 <td></td>
                                 <td></td>
-                                <td><b>{% trans 'Second semester credit(s):' %}</b> {{ total_sec_semester_credit }} </td>
+                                <td><b>{% trans 'Créditos del segundo cuatrimestre:' %}</b> {{ total_sec_semester_credit }} </td>
                                 <td></td>
                             </tr>
                             <tr>
                                 <th scope="row"></th>
-                                <td><b>{% trans 'Registerd course credit(s):' %}' <a id="units">{{ total_registered_credit }}</a></b>
+                                <td><b>{% trans 'Créditos inscritos:' %}' <a id="units">{{ total_registered_credit }}</a></b>
                                 </td>
                                 <td></td>
                                 <td></td>
                                 <td></td>
-                                <td><b>{% trans 'Total credit(s):' %}</b> {{ total_sec_semester_credit|add:total_first_semester_credit }} </td>
+                                <td><b>{% trans 'Créditos totales:' %}</b> {{ total_sec_semester_credit|add:total_first_semester_credit }} </td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -183,14 +183,14 @@
 {% if not no_course_is_registered %}
 
 <div class="col-md-12 p-0 bg-white">
-    <p class="form-title"><b>{% trans 'Course Drop' %}</b></p>
+    <p class="form-title"><b>{% trans 'Abandonar Materias' %}</b></p>
     <div class="container">
         <p class="fw-bold">{{ student.level }}</p>
         <form action="{% url 'course_drop' %}" method="POST">
             {% csrf_token %}
             <div class="d-flex justify-content-between mb-4">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fa fa-times"></i> {% trans 'Drop Selected' %}
+                    <i class="fa fa-times"></i> {% trans 'Abandonar seleccionadas' %}
                 </button>
             </div>
 
@@ -199,13 +199,13 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>{% trans 'Mark' %}</th>
-                                <th>{% trans 'Course Code' %}</th>
-                                <th>{% trans 'Course Title' %}</th>
-                                <th>{% trans 'Cr.Hr(s)' %}</th>
-                                <th>{% trans 'Year' %}</th>
-                                <th>{% trans 'Classification' %}</th>
-                                <th>{% trans 'Elective Group' %}</th>
+                                <th>{% trans 'Seleccionar' %}</th>
+                                <th>{% trans 'Código' %}</th>
+                                <th>{% trans 'Materia' %}</th>
+                                <th>{% trans 'Créditos' %}</th>
+                                <th>{% trans 'Año' %}</th>
+                                <th>{% trans 'Tipo' %}</th>
+                                <th>{% trans 'Grupo optativo' %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -219,9 +219,9 @@
                                 <td>{{ course.credit }}</td>
                                 <td>{{ course.year }}</td>
                                 {% if course.is_elective %}
-                                <td>{% trans 'Elective' %}</td>
+                                <td>{% trans 'Optativa' %}</td>
                                 {% else %}
-                                <td>{% trans 'Core' %}</td>
+                                <td>{% trans 'Obligatoria' %}</td>
                                 {% endif %}
                                 <th>-</th>
                             </tr>
@@ -232,7 +232,7 @@
                                 <td></td>
                                 <td>
                                     <span class="text-danger">
-                                        {% trans 'No Course.' %}
+                                        {% trans 'No hay materias.' %}
                                     </span>
                                 </td>
                                 <td></td>
@@ -246,7 +246,7 @@
                                 <td></td>
                                 <td></td>
                                 <td></td>
-                                <td><b>{% trans 'Total credit(s):' %}</b> {{ total_registered_credit }} </td>
+                                <td><b>{% trans 'Créditos totales:' %}</b> {{ total_registered_credit }} </td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -257,8 +257,8 @@
     </div>
 </div>
 
-<a class="btn btn-sm btn-secondary mt-3" href="{% url 'course_registration_form' %}" target="_blank" title="{% trans 'Print Registration Form' %}">
-    <i class="fas fa-print"></i> {% trans 'Print Registerd Courses' %}
+<a class="btn btn-sm btn-secondary mt-3" href="{% url 'course_registration_form' %}" target="_blank" title="{% trans 'Imprimir formulario de inscripción' %}">
+    <i class="fas fa-print"></i> {% trans 'Imprimir materias inscritas' %}
 </a>
 
 {% endif %}

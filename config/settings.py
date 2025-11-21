@@ -26,7 +26,8 @@ SECRET_KEY = config(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config("DEBUG", default=True, cast=bool)
+_debug_raw = config("DEBUG", default="True")
+DEBUG = str(_debug_raw).strip().lower() in ("true", "1", "yes", "y")
 
 ALLOWED_HOSTS = ["127.0.0.1", "adilmohak1.pythonanywhere.com"]
 
@@ -62,7 +63,6 @@ PROJECT_APPS = [
     "result.apps.ResultConfig",
     "search.apps.SearchConfig",
     "quiz.apps.QuizConfig",
-    "payments.apps.PaymentsConfig",
 ]
 
 # Combine all apps
@@ -204,10 +204,6 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 
-# Strip payment config
-STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
-STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY", default="")
-
 # LOGGING
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#logging
@@ -262,7 +258,7 @@ SECOND = "Second"
 THIRD = "Third"
 
 SEMESTER_CHOICES = (
-    (FIRST, _("Primer")),
-    (SECOND, _("Segundo")),
-    (THIRD, _("Tercer")),
+    (FIRST, _("Primer Cuatrimestre")),
+    (SECOND, _("Segundo Cuatrimestre")),
+    (THIRD, _("Materias de Verano")),
 )

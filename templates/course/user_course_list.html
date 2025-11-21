@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %} {% trans 'My Courses' %} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %} {% trans 'Mis Materias' %} | {% trans 'Gestor Académico' %}{% endblock title %}
 {% load static %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'My Courses' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Mis Materias' %}</li>
     </ol>
 </nav>
 
@@ -20,26 +20,26 @@
 {% endif %}
 
 {% if request.user.is_lecturer %}
-    <div class="title-1">{% trans 'My Courses' %}</div>
+    <div class="title-1">{% trans 'Mis Materias' %}</div>
 {% endif %}
 
 {% include 'snippets/messages.html' %}
 
 {% if request.user.is_student %}
 <div class="table-responsive p-3 mt-3">
-    <h6 class="fw-bold text-primary"><u>{% trans 'Taken Courses:' %}</u></h6>
+    <h6 class="fw-bold text-primary"><u>{% trans 'Materias cursadas:' %}</u></h6>
     <div class="table-shadow">
         <table class="table table-light">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th> {% trans 'Course Name' %} </th>
-                    <th> {% trans 'Course Code' %} </th>
-                    <th> {% trans 'Cr.Hr' %} </th>
-                    <th> {% trans 'Year' %} </th>
-                    <th> {% trans 'Semester' %} </th>
-                    <th> {% trans 'Current Semester' %} </th>
-                    <th> {% trans 'Taken' %} </th>
+                    <th> {% trans 'Materia' %} </th>
+                    <th> {% trans 'Código' %} </th>
+                    <th> {% trans 'Créditos' %} </th>
+                    <th> {% trans 'Año' %} </th>
+                    <th> {% trans 'Cuatrimestre' %} </th>
+                    <th> {% trans 'Cuatrimestre actual' %} </th>
+                    <th> {% trans 'Cursada' %} </th>
                 </tr>
             </thead>
             <tbody>
@@ -60,7 +60,7 @@
                         {% endif %}
                     </th>
                     <td class="success">
-                        <i class="fas fa-check-circle"></i> {% trans 'Taken' %}
+                        <i class="fas fa-check-circle"></i> {% trans 'Cursada' %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -71,18 +71,18 @@
 {% endif %}
 
 <div class="table-responsive p-3">
-    <h6 class="fw-bold text-primary"><u>{% trans 'All Courses:' %}</u></h6>
+    <h6 class="fw-bold text-primary"><u>{% trans 'Todas las materias:' %}</u></h6>
     <div class="table-shadow">
         <table class="table table-light">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th> {% trans 'Course Name' %} </th>
-                    <th> {% trans 'Course Code' %} </th>
-                    <th> {% trans 'Cr.Hr' %} </th>
-                    <th> {% trans 'Year' %} </th>
-                    <th> {% trans 'Semester' %} </th>
-                    <th> {% trans 'Current Semester' %} </th>
+                    <th> {% trans 'Materia' %} </th>
+                    <th> {% trans 'Código' %} </th>
+                    <th> {% trans 'Créditos' %} </th>
+                    <th> {% trans 'Año' %} </th>
+                    <th> {% trans 'Cuatrimestre' %} </th>
+                    <th> {% trans 'Cuatrimestre actual' %} </th>
                 </tr>
             </thead>
             <tbody>

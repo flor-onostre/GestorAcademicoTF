@@ -1,8 +1,6 @@
-{% extends 'base.html' %}
-{% load i18n %}
+﻿{% extends 'base.html' %}
+{% load i18n crispy_forms_tags static %}
 {% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
-{% load crispy_forms_tags %}
-{% load static %}
 
 {% block content %}
 
@@ -31,6 +29,8 @@
                     {{ form.gender|as_crispy_field }}
                     {{ form.phone|as_crispy_field }}
                     {{ form.address|as_crispy_field }}
+                    {{ form.locality|as_crispy_field }}
+                    {{ form.nationality|as_crispy_field }}
                 </div>
             </div>
         </div>
@@ -39,10 +39,13 @@
                 <p class="form-title">{% trans 'Otros' %}</p>
                 <div class="card-body">
                     {{ form.picture|as_crispy_field }}
+                    {{ form.programs|as_crispy_field }}
                 </div>
             </div>
         </div>
     </div>
     <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
 </form>
+
 {% endblock content %}
+

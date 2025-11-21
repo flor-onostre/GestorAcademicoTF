@@ -14,7 +14,7 @@
     </ol>
 </nav>
 
-<h4 class="fw-bold mb-3"><i class="fas fa-chalkboard-teacher me-2"></i>{% trans 'Agregar Docente' %}</h4>
+<h4 class="fw-bold mb-3"><i class="fas fa-chalkboard-teacher me-2"></i>{% trans 'Agregar personal' %}</h4>
 
 {% include 'snippets/messages.html' %}
 
@@ -28,14 +28,49 @@
                     {{ form.first_name|as_crispy_field }}
                     {{ form.last_name|as_crispy_field }}
                     {{ form.email|as_crispy_field }}
-                    {{ form.address|as_crispy_field }}
                     {{ form.phone|as_crispy_field }}
+                    {{ form.dni|as_crispy_field }}
                     {{ form.gender|as_crispy_field }}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <p class="form-title">{% trans 'Rol y estado' %}</p>
+                <div class="p-2">
+                    {{ form.role|as_crispy_field }}
+                    <div id="coordinator-programs" class="mt-2" style="display:none;">
+                        {{ form.programs_as_coordinator|as_crispy_field }}
+                    </div>
+                    <div id="teacher-programs" class="mt-2" style="display:none;">
+                        {{ form.programs_as_teacher|as_crispy_field }}
+                    </div>
+                    {{ form.is_role_active|as_crispy_field }}
                 </div>
             </div>
         </div>
     </div>
     <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
 </form>
+
+<script>
+    (function() {
+        const roleField = document.getElementById("id_role");
+        const coordinatorBlock = document.getElementById("coordinator-programs");
+        const teacherBlock = document.getElementById("teacher-programs");
+        if (!roleField) return;
+        function syncRoleFields() {
+            const value = roleField.value;
+            if (coordinatorBlock) {
+                coordinatorBlock.style.display = value === "COORDINATOR" ? "" : "none";
+            }
+            if (teacherBlock) {
+                teacherBlock.style.display = value === "TEACHER" ? "" : "none";
+            }
+        }
+        roleField.addEventListener("change", syncRoleFields);
+        syncRoleFields();
+    })();
+</script>
 
 {% endblock content %}
