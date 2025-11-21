@@ -25,14 +25,14 @@
 		{% url 'add_score' as ascore %} {% url 'grade_results' as vr %}{% url 'ass_results' as ar %}
 		{% url 'course_registration' as cr %} {% url 'edit_profile' as ep %} {% url 'change_password' as cp %}
 		{% url 'quiz_progress' as qpr %} {% url 'quiz_marking' as qce %} {% url 'user_course_list' as ucl %}
-		{% url 'admin_panel' as admin_p %}
+		{% url 'admin_panel' as admin_p %} {% url 'course_section_list' as section_list_url %} {% url 'attendance_dashboard' as attendance_dashboard_url %}
 		
 
 
 		<ul>
 			{% if request.user.is_superuser %}
 			<li class="{% if request.path == dash %}active{% endif %}">
-				<a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i>{% trans 'Dashboard' %}</a>
+				<a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i>{% trans 'Panel Principal' %}</a>
 			</li>
 			{% endif %}
 			<li class="{% if request.path == hom %}active{% endif %}">
@@ -44,14 +44,29 @@
 
 			{% if request.user.is_superuser %}
 			<li class="{% if request.path == admin_p %}active{% endif %}">
-				<a href="{% url 'admin_panel' %}"><i class="fas fa-user-tie"></i>{% trans 'Panel de Administrador' %}</a>
+				<a href="{% url 'admin_panel' %}"><i class="fas fa-user-tie"></i>{% trans 'Panel de administrador' %}</a>
 			</li>
-			<li class="{% if request.path == lec %}active{% endif %}">
-				<a href="{% url 'lecturer_list' %}"><i class="fas fa-chalkboard-teacher"></i>{% trans 'Docentes' %}</a>
+            <li><hr class="dropdown-divider"></li>
+            <li class="text-uppercase text-muted small px-3">{% trans 'Administrar' %}</li>
+            {% url 'university_list' as universities_url %}
+            <li class="{% if request.path == universities_url %}active{% endif %}">
+                <a href="{{ universities_url }}"><i class="fas fa-university"></i>{% trans 'Universidades' %}</a>
+            </li>
+			<li class="{% if request.path == pro %}active{% endif %}">
+				<a href="{% url 'programs' %}"><i class="fas fa-book-open"></i>{% trans 'Carreras' %}</a>
 			</li>
-			<li class="{% if request.path == stu %}active{% endif %}">
-				<a href="{% url 'student_list' %}"><i class="fas fa-user-graduate"></i>{% trans 'Estudiantes' %}</a>
-			</li>
+            {% url 'course_list' as course_list_url %}
+            {% url 'add_student' as add_student_url %}
+            <li class="{% if request.path == course_list_url %}active{% endif %}">
+                <a href="{{ course_list_url }}"><i class="fas fa-book"></i>{% trans 'Materias' %}</a>
+            </li>
+            <li class="{% if request.path == add_student_url %}active{% endif %}">
+                <a href="{{ add_student_url }}"><i class="fas fa-user-plus"></i>{% trans 'Agregar alumno' %}</a>
+            </li>
+            <li class="{% if request.path == lec or request.path == stu %}active{% endif %}">
+                <a href="{% url 'lecturer_list' %}"><i class="fas fa-users"></i>{% trans 'Staff académico' %}</a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
 			{% endif %}
 
 			{% if request.user.is_lecturer or request.user.is_student %}
@@ -60,11 +75,17 @@
 			</li>
 			{% endif %}
 
-			{% if request.user.is_superuser or request.user.is_lecturer %}
-			<li class="{% if request.path == pro %}active{% endif %}">
-				<a href="{% url 'programs' %}"><i class="fas fa-book-open"></i>{% trans 'Carreras y Materias' %}</a>
+
+			{% if request.user.is_superuser or request.user.role == 'COORDINATOR' or request.user.role == 'ADMIN' or request.user.role == 'BEDEL' %}
+			<li class="{% if request.path == section_list_url %}active{% endif %}">
+				<a href="{% url 'course_section_list' %}"><i class="fas fa-users-cog"></i>{% trans 'Comisiones' %}</a>
 			</li>
 			{% endif %}
+            {% if request.user.role == 'BEDEL' or request.user.is_superuser %}
+            <li class="{% if request.path == attendance_dashboard_url %}active{% endif %}">
+                <a href="{% url 'attendance_dashboard' %}"><i class="fas fa-clipboard-list"></i>{% trans 'Tablero de asistencia' %}</a>
+            </li>
+            {% endif %}
 
 			{% if request.user.is_superuser or request.user.is_lecturer %}
 			<!--<li class="{% if request.path == qce %}active{% endif %}">
@@ -80,7 +101,7 @@
 				<a href="{% url 'course_allocation_view' %}"><i class="fas fa-tasks"></i>{% trans 'Ubicación de Materias' %}</a>
 			</li>
 			<li class="{% if request.path == sess %}active{% endif %}">
-				<a href="{% url 'session_list' %}"><i class="fas fa-calendar-week"></i>{% trans 'Administrar Sesión' %}</a>
+				<a href="{% url 'session_list' %}"><i class="fas fa-calendar-week"></i>{% trans 'Administrar Ciclo Lectivo' %}</a>
 			</li>
 			<li class="{% if request.path == sem %}active{% endif %}">
 				<a href="{% url 'semester_list' %}"><i class="fas fa-calendar-alt"></i>{% trans 'Administrar Cuatrimestre' %}</a>
@@ -89,7 +110,7 @@
 
 			{% if request.user.is_lecturer %}
 			<li class="{% if request.path == ascore %}active{% endif %}">
-				<a href="{% url 'add_score' %}"><i class="fas fa-table"></i>{% trans 'Administrar Puntaje' %}</a>
+				<a href="{% url 'add_score' %}"><i class="fas fa-table"></i>{% trans 'Administrar Calificaciones' %}</a>
 			</li>
 			{% endif %}
 
@@ -104,7 +125,7 @@
 				<a href="{% url 'ass_results' %}"><i class="fa fa-list-ol"></i> {% trans 'Resultados de Evaluación' %}</a>
 			</li>
 			<li class="{% if request.path == cr %}active{% endif %}">
-				<a href="{% url 'course_registration' %}"><i class="fas fa-plus"></i>{% trans 'Añadir' %} &amp; {% trans 'Materias Abandonadas' %}</a>
+				<a href="{% url 'course_registration' %}"><i class="fas fa-plus"></i>{% trans 'Agregar o Abandonar Materias' %}</a>
 			</li>
 			{% endif %}
 			<br />
@@ -118,32 +139,7 @@
 		</ul>
 	</div>
 
-	<footer class="card-footer mt-5 pt-3 pb-5 px-2">
-		<div class="col-12">
-
-			<form action="{% url 'set_language' %}" method="post" id="lang-form">{% csrf_token %}
-				<input name="next" type="hidden" value="{{ redirect_to }}">
-				<select class="small" name="language" id="lang-select">
-					{% get_current_language as LANGUAGE_CODE %}
-					{% get_available_languages as LANGUAGES %}
-					{% get_language_info_list for LANGUAGES as languages %}
-					{% for language in languages %}
-						<option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
-							{{ language.name_local }} ({{ language.code }})
-						</option>
-					{% endfor %}
-				</select>
-			</form>
-
-		</div>
+	<footer class="card-footer mt-5 pt-3 pb-5 px-2 text-center small text-muted">
+		<p>© {{ now|date:"Y" }} Gestor Académico CUDI</p>
 	</footer>
 </div>
-
-{% block js %}
-<script>
-	document.getElementById("lang-select").addEventListener("change", function() {
-		console.log("Cambiado!")
-    	document.getElementById("lang-form").submit();  // Submit the form programmatically
-	});
-</script>
-{% endblock js %}

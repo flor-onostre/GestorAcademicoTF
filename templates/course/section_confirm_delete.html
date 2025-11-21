@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<div class="alert alert-warning mt-3">
+    <p>
+        ¿Estás seguro de que querés eliminar la comisión de
+        <strong>{{ section.course.title }}</strong> ({{ section.turn.name }})?
+    </p>
+    <p class="mb-0">Esta acción no se puede deshacer.</p>
+</div>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+    <a href="{% url 'course_section_list' %}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

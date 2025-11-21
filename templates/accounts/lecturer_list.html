@@ -1,24 +1,24 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Lecturers' %}</li>
+      <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Docentes' %}</li>
     </ol>
 </nav>
 
 {% if request.user.is_superuser %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'add_lecturer' %}"><i class="fas fa-plus"></i>{% trans 'Add Lecturer' %}</a>
-    <a class="btn btn-primary" target="_blank" href="{% url 'lecturer_list_pdf' %}"><i class="fas fa-download"></i> {% trans 'Download pdf' %}</a><!--new-->
+    <a class="btn btn-primary" href="{% url 'add_lecturer' %}"><i class="fas fa-plus"></i>{% trans 'Agregar Docente' %}</a>
+    <a class="btn btn-primary" target="_blank" href="{% url 'lecturer_list_pdf' %}"><i class="fas fa-download"></i> {% trans 'Descargar PDF' %}</a><!--new-->
 </div>
 {% endif %}
 
-<p class="title-1"><i class="fas fa-chalkboard-teacher"></i>{% trans 'Lecturers' %}</p>
+<p class="title-1"><i class="fas fa-chalkboard-teacher"></i>{% trans 'Docentes' %}</p>
 
 {% include 'snippets/messages.html' %}
 {% include 'snippets/filter_form.html' %}
@@ -28,14 +28,14 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th> {% trans 'ID No.' %}' </th>
-                <th> {% trans 'Full Name' %} </th>
-                <th> {% trans 'Email' %} </th>
-                <th> {% trans 'Mob No.' %} </th>
-                <th> {% trans 'Address/city' %} </th>
-                <th> {% trans 'Last login' %}  </th>
+                <th> {% trans 'Nro. ID' %}' </th>
+                <th> {% trans 'Nombre completo' %} </th>
+                <th> {% trans 'Correo electrónico' %} </th>
+                <th> {% trans 'Tel.' %} </th>
+                <th> {% trans 'Dirección / Ciudad' %} </th>
+                <th> {% trans 'Último acceso' %}  </th>
                 {% if request.user.is_superuser %}
-                <th> {% trans 'Action' %} </th>
+                <th> {% trans 'Acción' %} </th>
                 {% endif %}
             </tr>
         </thead>
@@ -56,9 +56,9 @@
                             <i class="fa fa-ellipsis-vertical"></i>
                         </button>
                         <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="{% url 'staff_edit' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Update' %}</a></li>
-                          <li><a class="dropdown-item"  target="_blank" href="{% url 'profile_single' lecturer.id %}?download_pdf=1"><i class="unstyled me-2 fas fa-download"></i>{% trans 'Download PDF' %}</a></li>
-                          <li><a class="dropdown-item text-danger" href="{% url 'lecturer_delete' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i> {% trans 'Delete' %}</a></li>
+                          <li><a class="dropdown-item" href="{% url 'staff_edit' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Editar' %}</a></li>
+                          <li><a class="dropdown-item"  target="_blank" href="{% url 'profile_single' lecturer.id %}?download_pdf=1"><i class="unstyled me-2 fas fa-download"></i>{% trans 'Descargar PDF' %}</a></li>
+                          <li><a class="dropdown-item text-danger" href="{% url 'lecturer_delete' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i> {% trans 'Eliminar' %}</a></li>
                         </ul>
                     </div>
                 </td>
@@ -68,11 +68,11 @@
                 <tr>
                   <td colspan="8">
                   <span class="text-danger">
-                    {% trans 'No Lecturer(s).' %}
+                    {% trans 'Sin docentes.' %}
                     {% if request.user.is_superuser %}
                     <a href="{% url 'add_lecturer' %}">
                     <i class="primary" style="font-size: 22px;">
-                        {% trans 'Add Lecturer Now.' %}
+                        {% trans 'Agregar docente ahora.' %}
                     </i>
                     {% endif %}
                     </a>

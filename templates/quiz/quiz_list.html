@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | Learning management system{% endblock title %}
+{% block title %}{{ title }} | Gestor Académico{% endblock title %}
 {% load i18n %}
 {% load static %}
 
@@ -8,25 +8,25 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
         {% if request.user.is_student %}
-        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'My courses' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'Mis Materias' %}</a></li>
         {% else %}
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
         {% endif %}
         <li class="breadcrumb-item"><a href="{% url 'program_detail' pk=1 %}">{{ course.program }}</a></li>
         <li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Quizzes' %}</li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Cuestionarios' %}</li>
     </ol>
 </nav>
 
 {% if request.user.is_superuser or request.user.is_lecturer %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'quiz_create' course.slug %}"><i class="fas fa-plus"></i>{% trans 'Add Quiz' %}</a>
+    <a class="btn btn-primary" href="{% url 'quiz_create' course.slug %}"><i class="fas fa-plus"></i>{% trans 'Nuevo cuestionario' %}</a>
 </div>
 {% endif %}
 
-<div class="title-1">{% trans 'Quizzes' %} [{{ course|truncatechars:25 }}]</div>
+<div class="title-1">{% trans 'Cuestionarios' %} [{{ course|truncatechars:25 }}]</div>
 <br>
 <br>
 
@@ -39,9 +39,9 @@
         <div class="col-md-4 mb-2">
             <div class="card p-2 quiz-wrapper">
                 <div class="d-flex justify-content-between align-items-center text-success mb-4">
-                    <em class="text-left">{{ quiz.category|title }} {% trans 'Quiz' %}</em>
+                    <em class="text-left">{{ quiz.category|title }} {% trans 'cuestionario' %}</em>
                     <div class="text-right text-light bg-danger px-2 small rounded">
-                        {{ quiz.get_questions.count }} {% trans 'Questions' %}
+                        {{ quiz.get_questions.count }} {% trans 'preguntas' %}
                     </div>
                 </div>
 
@@ -50,25 +50,25 @@
                 {% if quiz.description %}
                 <p class="text-muted small">{{ quiz.description }}</p>
                 {% else %}
-                <p class="text-muted small">No description set.</p>
+                <p class="text-muted small">{% trans 'Sin descripción.' %}</p>
                 {% endif %}
 
                 {% if quiz.single_attempt %}
-                <p class="p-2 bg-light-warning small">{% trans "You will only get one attempt at this quiz" %}.</p>
+                <p class="p-2 bg-light-warning small">{% trans 'Solo tendrás un intento para este cuestionario.' %}.</p>
                 {% endif %}
 
                 <div class="d-flex align-items-center">
-                    <a class="btn btn-block btn-secondary w-100" href="{% url 'quiz_take' pk=course.pk slug=quiz.slug %}">{% trans "Start quiz" %} &raquo;</a>
+                    <a class="btn btn-block btn-secondary w-100" href="{% url 'quiz_take' pk=course.pk slug=quiz.slug %}">{% trans 'Comenzar cuestionario' %} &raquo;</a>
 
                     {% if request.user.is_superuser or request.user.is_lecturer %}
                         <div class="dropup">
                             <button class="btn btn-sm p-0 ms-2" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v m-0"></i></button>
                             <div class="dropdown-menu" aria-labelledby="dropdown01">
                                 <div class="dropdown-item">
-                                    <a href="{% url 'quiz_update' slug=course.slug pk=quiz.id %}" class="update"><i class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Edit' %}</a>
+                                    <a href="{% url 'quiz_update' slug=course.slug pk=quiz.id %}" class="update"><i class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Editar' %}</a>
                                 </div>
                                 <div class="dropdown-item">
-                                    <a href="{% url 'quiz_delete' slug=course.slug pk=quiz.id %}" class="delete"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}</a>
+                                    <a href="{% url 'quiz_delete' slug=course.slug pk=quiz.id %}" class="delete"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Eliminar' %}</a>
                                 </div>
                             </div>
                         </div>
@@ -79,7 +79,7 @@
 
         {% empty %}
         <h4 class="text-center mt-5 py-5 text-muted">
-            <i class="fa-regular fa-folder-open me-2"></i> Course quizzes will appear here.
+            <i class="fa-regular fa-folder-open me-2"></i> {% trans 'Los cuestionarios de la materia aparecerán aquí.' %}
         </h4>
         {% endfor %}
     </div>

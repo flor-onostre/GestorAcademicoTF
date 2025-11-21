@@ -1,23 +1,23 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Allocation list' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Lista de asignaciones' %}</li>
     </ol>
 </nav>
 
 {% if request.user.is_superuser %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'course_allocation' %}"><i class="fas fa-plus"></i>{% trans 'Allocate Now' %}</a>
+    <a class="btn btn-primary" href="{% url 'course_allocation' %}"><i class="fas fa-plus"></i>{% trans 'Asignar ahora' %}</a>
 </div>
 {% endif %}
 
-<div class="title-1"><i class="fas fa-tasks"></i>{% trans 'Course Allocations' %}</div>
+<div class="title-1"><i class="fas fa-tasks"></i>{% trans 'Asignaciones de Materias' %}</div>
 <br>
 <br>
 
@@ -29,10 +29,10 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>{% trans 'Lecturer' %}</th>
-                <th>{% trans 'Courses' %}</th>
+                <th>{% trans 'Docente' %}</th>
+                <th>{% trans 'Materias' %}</th>
                 {% if request.user.is_superuser %}
-                <th>{% trans 'Action' %}</th>
+                <th>{% trans 'Acciones' %}</th>
                 {% endif %}
             </tr>
         </thead>
@@ -47,10 +47,10 @@
                 </td>
                 {% if request.user.is_superuser %}
                 <td><div class="update-delete">
-                    <a href="{% url 'edit_allocated_course' pk=course.pk %}" class="update" title="{% trans 'Edit or Update' %}">
+                    <a href="{% url 'edit_allocated_course' pk=course.pk %}" class="update" title="{% trans 'Editar o Actualizar' %}">
                         <i class="fas fa-edit"></i>
                     </a>
-                    <a href="{% url 'course_deallocate' pk=course.pk %}" class="delete" title="{% trans 'Deallocate' %}">
+                    <a href="{% url 'course_deallocate' pk=course.pk %}" class="delete" title="{% trans 'Desasignar' %}">
                         <i class="fas fa-trash-alt"></i>
                     </a>
                     </div>
@@ -62,11 +62,11 @@
               <td></td>
               <td></td>
               <td>
-                <span class="text-danger">{% trans 'No Course Allocated.' %}
+                <span class="text-danger">{% trans 'No hay materias asignadas.' %}
                     {% if request.user.is_superuser %}
                     <a href="{% url 'course_allocation' %}">
                     <i class="primary" style="font-size: 22px;">
-                        {% trans 'Allocate now' %}
+                        {% trans 'Asignar ahora' %}
                     </i>
                     {% endif %}
                     </a>

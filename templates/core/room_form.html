@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'room_list' %}">{% trans 'Aulas y laboratorios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% include 'snippets/messages.html' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Piso' %}</label>
+                        {{ form.floor }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Nombre del espacio' %}</label>
+                        {{ form.name }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Código' %}</label>
+                        {{ form.code }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Tipo' %}</label>
+                        {{ form.room_type }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans 'Capacidad' %}</label>
+                        {{ form.capacity }}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.is_enabled }}
+                <label class="form-check-label ms-2">{% trans 'Habilitada' %}</label>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">{% trans 'Descripción' %}</label>
+                {{ form.description }}
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>{% trans 'Guardar' %}</button>
+            <a class="btn btn-light" href="{% url 'room_list' %}">{% trans 'Cancelar' %}</a>
+        </form>
+    </div>
+</div>
+{% endblock content %}

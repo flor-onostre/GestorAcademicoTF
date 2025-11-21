@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% trans 'Eliminar espacio' %} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'room_list' %}">{% trans 'Aulas y laboratorios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Eliminar' %}</li>
+    </ol>
+</nav>
+
+<div class="card border-danger">
+    <div class="card-body">
+        <h5 class="text-danger">{% trans 'Confirmá la eliminación del espacio:' %} <strong>{{ room.code }}</strong></h5>
+        <p class="text-muted mb-4">{% trans 'Esta acción no se puede deshacer.' %}</p>
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit"><i class="fas fa-trash me-1"></i>{% trans 'Eliminar' %}</button>
+            <a class="btn btn-light" href="{% url 'room_list' %}">{% trans 'Cancelar' %}</a>
+        </form>
+    </div>
+</div>
+{% endblock content %}

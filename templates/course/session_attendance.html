@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Asistencia - {{ section.course.title }} ({{ session.date|date:"d/m/Y" }})</h2>
+{% if session.is_cancelled %}
+    <div class="alert alert-warning">
+        Esta clase fue suspendida{% if session.cancellation_reason %}: {{ session.cancellation_reason }}{% endif %}.
+    </div>
+{% endif %}
+<form method="post" class="card mt-3">
+    <div class="card-body table-responsive">
+        {% csrf_token %}
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Alumno</th>
+                    <th>Estado</th>
+                    <th>Comentario</th>
+                    <th>Regularidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in student_rows %}
+                    <tr class="{% if not row.is_regular %}table-warning{% endif %}">
+                        <td>{{ row.student.student.get_full_name }}</td>
+                        <td>
+                            <select name="student_{{ row.student.id }}" class="form-select form-select-sm">
+                                <option value="">--</option>
+                                {% for value,label in status_choices %}
+                                    <option value="{{ value }}" {% if row.record and row.record.status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="comment_{{ row.student.id }}" class="form-control form-control-sm" value="{% if row.record %}{{ row.record.comment }}{% endif %}">
+                        </td>
+                        <td>
+                            {% if row.is_regular %}
+                                <span class="badge bg-success">Regular</span>
+                            {% else %}
+                                <span class="badge bg-danger">Irregular</span>
+                            {% endif %}
+                            <div class="small text-muted">
+                                {% trans "Ausencias restantes" %}: {{ row.remaining_absences }} / {{ row.allowed_absences }}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4">No hay alumnos inscriptos en esta materia.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-3 text-end">
+            <button type="submit" class="btn btn-primary" {% if session.is_cancelled %}disabled{% endif %}>Guardar asistencia</button>
+        </div>
+    </div>
+</form>
+
+{% if pending_justifications %}
+<div class="card mt-4">
+    <div class="card-header">{% trans "Justificaciones pendientes" %}</div>
+    <div class="card-body">
+        <ul class="list-group">
+            {% for justification in pending_justifications %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ justification.attendance_record.student.student.get_full_name }}
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'review_justification' justification.pk %}">{% trans "Revisar" %}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

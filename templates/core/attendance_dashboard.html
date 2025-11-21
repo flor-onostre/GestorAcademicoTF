@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<h2>{% trans "Tablero de asistencia y aulas" %}</h2>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">{% trans "Clases sin asistencia cargada" %}</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                {% for session in missing_sessions %}
+                    <li class="list-group-item">
+                        <strong>{{ session.section.course.title }}</strong><br>
+                        {{ session.date|date:"d/m/Y" }} - {{ session.section.turn.name }}<br>
+                        <span class="text-muted">{% trans "Docentes" %}: {{ session.section.teachers.all|join:", " }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">{% trans "Todo al día." %}</li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">{% trans "Secciones con más ausencias" %}</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                {% for stat in absence_stats %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ stat.session__section__course__title }}</span>
+                        <span class="badge bg-danger">{{ stat.total }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">{% trans "Sin ausencias registradas." %}</li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">{% trans "Uso de aulas" %}</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                {% for usage in room_usage %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{% trans "Aula" %} {{ usage.room__code }}</span>
+                        <span class="badge bg-primary">{{ usage.total }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">{% trans "No hay aulas asignadas." %}</li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">{% trans "Planillas pendientes de IA" %}</div>
+    <div class="card-body table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Comisión" %}</th>
+                    <th>{% trans "Tipo" %}</th>
+                    <th>{% trans "Subido por" %}</th>
+                    <th>{% trans "Fecha" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for upload in uploads_pending %}
+                <tr>
+                    <td>{{ upload.section }}</td>
+                    <td>{{ upload.get_kind_display }}</td>
+                    <td>{{ upload.uploaded_by.get_full_name }}</td>
+                    <td>{{ upload.created_at|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">{% trans "Sin planillas pendientes." %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

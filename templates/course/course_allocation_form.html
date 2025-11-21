@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 {% load crispy_forms_tags %}
 {% load static %}
 
@@ -8,9 +8,9 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'course_allocation_view' %}">{% trans 'Course Allocations' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Allocation Form' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'course_allocation_view' %}">{% trans 'Asignación de Materias' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Formulario de Asignación' %}</li>
     </ol>
 </nav>
 
@@ -19,7 +19,7 @@
 <div class="row">
     <div class="col-md-6 mx-auto">
         <div class="card">
-            <p class="form-title">{% trans 'Course Allocation Form' %}</p>
+            <p class="form-title">{% trans 'Formulario de Asignación de Materias' %}</p>
             <div class="p-3">
                 <form action="" method="POST">{% csrf_token %}
                       {{ form.lecturer|as_crispy_field }}
@@ -27,7 +27,7 @@
                         
                     {% for course in form.courses.all %}{{ course }}{% endfor %}
 
-                    <input class="btn btn-outline-primary" type="submit" value="{% trans 'Save' %}">
+                    <input class="btn btn-outline-primary" type="submit" value="{% trans 'Guardar' %}">
                 </form>
             </div>
         </div>

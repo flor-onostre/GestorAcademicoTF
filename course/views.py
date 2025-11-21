@@ -1,38 +1,150 @@
+import math
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.views.generic import CreateView
+from django.views.generic import CreateView, ListView
 from django_filters.views import FilterView
 
-from accounts.decorators import lecturer_required, student_required
-from accounts.models import Student
-from core.models import Semester
+from accounts.decorators import admin_required, lecturer_required, student_required
+from accounts.models import Student, User
+from core.forms import (
+    AttendanceJustificationForm,
+    AttendanceJustificationReviewForm,
+    AttendanceUploadForm,
+    SectionSessionForm,
+    SessionDisableForm,
+)
+from core.models import (
+    AttendanceJustification,
+    AttendanceRecord,
+    BulkUploadRequest,
+    SectionSession,
+    Semester,
+)
+from core.services.ai_ingestion import enqueue_ai_processing
 from course.filters import CourseAllocationFilter, ProgramFilter
 from course.forms import (
     CourseAddForm,
     CourseAllocationForm,
+    CourseSectionForm,
     EditCourseAllocationForm,
     ProgramForm,
+    UniversityForm,
     UploadFormFile,
     UploadFormVideo,
 )
 from course.models import (
     Course,
     CourseAllocation,
+    CourseSection,
     Program,
+    University,
     Upload,
     UploadVideo,
 )
 from result.models import TakenCourse
 
 
+def _can_manage_sections(user):
+    return user.is_authenticated and (
+        user.is_superuser or getattr(user, "role", None) == User.Roles.COORDINATOR
+    )
+
+
+def _get_accessible_programs(user):
+    if not user.is_authenticated:
+        return Program.objects.none()
+    if user.is_superuser:
+        return Program.objects.all()
+    if getattr(user, "role", None) == User.Roles.COORDINATOR:
+        return Program.objects.filter(coordinators=user).distinct()
+    return Program.objects.none()
+
+
+def ensure_section_permission(user):
+    if not _can_manage_sections(user):
+        raise PermissionDenied
+
+
+def ensure_section_access(user, section):
+    if user.is_superuser:
+        return
+    if (
+        getattr(user, "role", None) == User.Roles.COORDINATOR
+        and section.program.coordinators.filter(pk=user.pk).exists()
+    ):
+        return
+    raise PermissionDenied
+
+
+def _section_students(section):
+    return Student.objects.filter(
+        takencourse__course=section.course
+    ).distinct().select_related("student")
+
+
+def _regularity_status(section, student):
+    from core.models import SectionSession, AttendanceRecord
+
+    total_sessions = SectionSession.objects.filter(
+        section=section, date__lte=timezone.now()
+    ).count()
+    if total_sessions == 0:
+        return True, 0, 0
+    present_count = AttendanceRecord.objects.filter(
+        session__section=section,
+        student=student,
+        status__in=[AttendanceRecord.PRESENT, AttendanceRecord.JUSTIFIED],
+    ).count()
+    required = section.attendance_required or section.program.min_passing_attendance
+    required = required or 0
+    percentage = (present_count / total_sessions) * 100
+    allowed_absences = max(
+        0,
+        total_sessions - math.ceil((required / 100) * total_sessions),
+    )
+    absences = total_sessions - present_count
+    remaining = max(0, allowed_absences - absences)
+    return percentage >= required, remaining, allowed_absences
+
+
 # ########################################################
 # Program Views
 # ########################################################
+
+
+@login_required
+@admin_required
+def university_list(request):
+    universities = University.objects.order_by("name")
+    return render(
+        request,
+        "course/university_list.html",
+        {"title": "Universidades", "universities": universities},
+    )
+
+
+@login_required
+@admin_required
+def university_add(request):
+    if request.method == "POST":
+        form = UniversityForm(request.POST)
+        if form.is_valid():
+            uni = form.save()
+            messages.success(request, f"Se creó la universidad {uni.name}.")
+            return redirect("university_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = UniversityForm()
+    return render(
+        request, "course/university_form.html", {"title": "Agregar universidad", "form": form}
+    )
 
 
 @method_decorator([login_required, lecturer_required], name="dispatch")
@@ -42,24 +154,24 @@ class ProgramFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Programs"
+        context["title"] = "Carreras"
         return context
 
 
 @login_required
-@lecturer_required
+@admin_required
 def program_add(request):
     if request.method == "POST":
         form = ProgramForm(request.POST)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"{program.title} program has been created.")
+            messages.success(request, f"Se creó la carrera {program.title}.")
             return redirect("programs")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = ProgramForm()
     return render(
-        request, "course/program_add.html", {"title": "Add Program", "form": form}
+        request, "course/program_add.html", {"title": "Agregar carrera", "form": form}
     )
 
 
@@ -84,31 +196,58 @@ def program_detail(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def program_edit(request, pk):
     program = get_object_or_404(Program, pk=pk)
     if request.method == "POST":
         form = ProgramForm(request.POST, instance=program)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"{program.title} program has been updated.")
+            messages.success(request, f"Se actualizó la carrera {program.title}.")
             return redirect("programs")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = ProgramForm(instance=program)
     return render(
-        request, "course/program_add.html", {"title": "Edit Program", "form": form}
+        request, "course/program_add.html", {"title": "Editar carrera", "form": form}
     )
 
 
 @login_required
-@lecturer_required
+@admin_required
 def program_delete(request, pk):
     program = get_object_or_404(Program, pk=pk)
     title = program.title
     program.delete()
-    messages.success(request, f"Program {title} has been deleted.")
+    messages.success(request, f"Se eliminó la carrera {title}.")
     return redirect("programs")
+
+
+@method_decorator([login_required, lecturer_required], name="dispatch")
+class CourseFilterView(ListView):
+    template_name = "course/course_list.html"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Course.objects.prefetch_related("programs").order_by("title")
+        program_id = self.request.GET.get("program") or ""
+        if program_id.isdigit():
+            qs = qs.filter(programs__id=program_id)
+        keyword = self.request.GET.get("q")
+        if keyword:
+            qs = qs.filter(
+                Q(title__icontains=keyword)
+                | Q(code__icontains=keyword)
+            ).distinct()
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Materias"
+        context["programs"] = Program.objects.order_by("title")
+        context["selected_program"] = self.request.GET.get("program") or ""
+        context["keyword"] = self.request.GET.get("q") or ""
+        return context
 
 
 # ########################################################
@@ -140,21 +279,19 @@ def course_single(request, slug):
 @lecturer_required
 def course_add(request, pk):
     program = get_object_or_404(Program, pk=pk)
-    if request.method == "POST":
+    if request.method == 'POST':
         form = CourseAddForm(request.POST)
         if form.is_valid():
             course = form.save()
-            messages.success(
-                request, f"{course.title} ({course.code}) has been created."
-            )
-            return redirect("program_detail", pk=program.pk)
-        messages.error(request, "Correct the error(s) below.")
+            messages.success(request, f'Se creó la materia {course.title} ({course.code}).')
+            return redirect('course_list')
+        messages.error(request, 'Corrige los errores indicados abajo.')
     else:
-        form = CourseAddForm(initial={"program": program})
+        form = CourseAddForm(initial={'program': program})
     return render(
         request,
-        "course/course_add.html",
-        {"title": "Add Course", "form": form, "program": program},
+        'course/course_add.html',
+        {'title': 'Agregar materia', 'form': form, 'program': program},
     )
 
 
@@ -162,19 +299,33 @@ def course_add(request, pk):
 @lecturer_required
 def course_edit(request, slug):
     course = get_object_or_404(Course, slug=slug)
+    if request.method == 'POST':
+        form = CourseAddForm(request.POST, instance=course)
+        if form.is_valid():
+            course = form.save()
+            messages.success(request, f'Se actualizó la materia {course.title} ({course.code}).')
+            return redirect('course_list')
+        messages.error(request, 'Corrige los errores indicados abajo.')
+    else:
+        form = CourseAddForm(instance=course)
+    return render(
+        request, 'course/course_add.html', {'title': 'Editar materia', 'form': form}
+    )
+def course_edit(request, slug):
+    course = get_object_or_404(Course, slug=slug)
     if request.method == "POST":
         form = CourseAddForm(request.POST, instance=course)
         if form.is_valid():
             course = form.save()
             messages.success(
-                request, f"{course.title} ({course.code}) has been updated."
+                request, f"Se actualizó la materia {course.title} ({course.code})."
             )
-            return redirect("program_detail", pk=course.program.pk)
-        messages.error(request, "Correct the error(s) below.")
+            return redirect("course_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = CourseAddForm(instance=course)
     return render(
-        request, "course/course_add.html", {"title": "Edit Course", "form": form}
+        request, "course/course_add.html", {"title": "Editar materia", "form": form}
     )
 
 
@@ -185,8 +336,315 @@ def course_delete(request, slug):
     title = course.title
     program_id = course.program.id
     course.delete()
-    messages.success(request, f"Course {title} has been deleted.")
+    messages.success(request, f"Se eliminó la materia {title}.")
     return redirect("program_detail", pk=program_id)
+
+
+# ########################################################
+# Course Section Views
+# ########################################################
+
+
+@login_required
+def course_section_list(request):
+    ensure_section_permission(request.user)
+    programs = _get_accessible_programs(request.user)
+    sections = (
+        CourseSection.objects.select_related(
+            "course", "program", "semester", "turn", "room"
+        )
+        .prefetch_related("teachers")
+        .order_by("course__title", "turn__name")
+    )
+    if not request.user.is_superuser:
+        sections = sections.filter(program__in=programs)
+    selected_program = request.GET.get("program") or None
+    if selected_program:
+        try:
+            selected_program_id = int(selected_program)
+        except (TypeError, ValueError):
+            selected_program_id = None
+        else:
+            if request.user.is_superuser or programs.filter(
+                pk=selected_program_id
+            ).exists():
+                sections = sections.filter(program_id=selected_program_id)
+            else:
+                selected_program_id = None
+        selected_program = selected_program_id
+    context = {
+        "title": "Comisiones",
+        "sections": sections,
+        "programs": programs.order_by("title"),
+        "selected_program": selected_program,
+    }
+    return render(request, "course/section_list.html", context)
+
+
+@login_required
+def course_section_create(request):
+    ensure_section_permission(request.user)
+    if request.method == "POST":
+        form = CourseSectionForm(request.POST, user=request.user)
+        if form.is_valid():
+            section = form.save()
+            messages.success(
+                request,
+                f"Se creó la comisión de '{section.course}' para el turno {section.turn}.",
+            )
+            return redirect("course_section_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = CourseSectionForm(user=request.user)
+    return render(
+        request,
+        "course/section_form.html",
+        {"form": form, "title": "Nueva comisión"},
+    )
+
+
+@login_required
+def course_section_update(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    if request.method == "POST":
+        form = CourseSectionForm(request.POST, instance=section, user=request.user)
+        if form.is_valid():
+            section = form.save()
+            messages.success(
+                request,
+                f"Se actualizó la comisión de '{section.course}'.",
+            )
+            return redirect("course_section_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = CourseSectionForm(instance=section, user=request.user)
+    return render(
+        request,
+        "course/section_form.html",
+        {"form": form, "title": "Editar comisión"},
+    )
+
+
+@login_required
+def course_section_delete(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    if request.method == "POST":
+        course_name = str(section.course)
+        section.delete()
+        messages.success(
+            request,
+            f"Se eliminó la comisión asociada a '{course_name}'.",
+        )
+        return redirect("course_section_list")
+    return render(
+        request,
+        "course/section_confirm_delete.html",
+        {"section": section, "title": "Eliminar comisión"},
+    )
+
+
+@login_required
+def section_sessions_view(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    sessions = (
+        SectionSession.objects.filter(section=section)
+        .select_related("cancelled_by")
+        .order_by("-date", "-start_time")
+    )
+    session_form = SectionSessionForm(section=section)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "add_session":
+            session_form = SectionSessionForm(request.POST, section=section)
+            if session_form.is_valid():
+                new_session = session_form.save(commit=False)
+                new_session.created_by = request.user
+                new_session.save()
+                messages.success(request, "Se agregó la clase al calendario.")
+                return redirect("section_sessions", pk=section.pk)
+            messages.error(request, "Revisa los datos ingresados.")
+        elif action == "disable_session":
+            form = SessionDisableForm(request.POST)
+            if form.is_valid():
+                target_session = get_object_or_404(
+                    SectionSession,
+                    pk=request.POST.get("session_id"),
+                    section=section,
+                )
+                target_session.is_cancelled = True
+                target_session.cancellation_reason = form.cleaned_data["reason"]
+                target_session.cancelled_by = request.user
+                target_session.save()
+                messages.success(request, "La clase fue deshabilitada.")
+                return redirect("section_sessions", pk=section.pk)
+            messages.error(request, "Indica el motivo para suspender la clase.")
+        elif action == "enable_session":
+            session_id = request.POST.get("session_id")
+            target_session = get_object_or_404(
+                SectionSession, pk=session_id, section=section
+            )
+            target_session.is_cancelled = False
+            target_session.cancellation_reason = ""
+            target_session.cancelled_by = None
+            target_session.save()
+            messages.success(request, "La clase volvió a estar habilitada.")
+            return redirect("section_sessions", pk=section.pk)
+    context = {
+        "section": section,
+        "sessions": sessions,
+        "session_form": session_form,
+        "title": "Calendario de cursada",
+    }
+    return render(request, "course/section_sessions.html", context)
+
+
+@login_required
+def session_attendance_view(request, session_id):
+    session = get_object_or_404(SectionSession, pk=session_id)
+    ensure_section_access(request.user, session.section)
+    students = _section_students(session.section)
+    records_map = {
+        record.student_id: record
+        for record in AttendanceRecord.objects.filter(session=session)
+    }
+    if request.method == "POST":
+        if session.is_cancelled:
+            messages.error(request, "No podés cargar asistencia en una clase suspendida.")
+        else:
+            for student in students:
+                status = request.POST.get(f"student_{student.id}")
+                comment = request.POST.get(f"comment_{student.id}", "")
+                if not status:
+                    continue
+                AttendanceRecord.objects.update_or_create(
+                    session=session,
+                    student=student,
+                    defaults={
+                        "status": status,
+                        "comment": comment,
+                        "recorded_by": request.user,
+                    },
+                )
+            session.attendance_submitted = True
+            session.save(update_fields=["attendance_submitted"])
+            messages.success(request, "Asistencia guardada correctamente.")
+            return redirect("session_attendance", session_id=session.pk)
+    student_rows = []
+    for student in students:
+        record = records_map.get(student.id)
+        is_regular, remaining_absences, allowed_absences = _regularity_status(
+            session.section, student
+        )
+        student_rows.append(
+            {
+                "student": student,
+                "record": record,
+                "is_regular": is_regular,
+                "remaining_absences": remaining_absences,
+                "allowed_absences": allowed_absences,
+            }
+        )
+    pending_justifications = AttendanceJustification.objects.filter(
+        attendance_record__session=session,
+        status=AttendanceJustification.PENDING,
+    )
+    context = {
+        "session": session,
+        "section": session.section,
+        "student_rows": student_rows,
+        "status_choices": AttendanceRecord.STATUS_CHOICES,
+        "pending_justifications": pending_justifications,
+    }
+    return render(request, "course/session_attendance.html", context)
+
+
+@login_required
+def section_upload_planilla(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    upload_form = AttendanceUploadForm()
+    if request.method == "POST":
+        upload_form = AttendanceUploadForm(request.POST, request.FILES)
+        if upload_form.is_valid():
+            upload_request = upload_form.save(commit=False)
+            upload_request.section = section
+            upload_request.uploaded_by = request.user
+            upload_request.save()
+            enqueue_ai_processing(upload_request)
+            messages.success(
+                request,
+                "Planilla enviada. El procesamiento automático se completará cuando el servicio de IA esté disponible.",
+            )
+            return redirect("section_upload_planilla", pk=section.pk)
+        messages.error(request, "No fue posible registrar el archivo. Revisa los datos.")
+    uploads = section.bulk_uploads.order_by("-created_at")
+    return render(
+        request,
+        "course/section_upload_ai.html",
+        {
+            "section": section,
+            "upload_form": upload_form,
+            "uploads": uploads,
+        },
+    )
+
+
+@login_required
+def submit_justification(request, token):
+    record = get_object_or_404(AttendanceRecord, justification_token=token)
+    if record.student.student != request.user:
+        raise PermissionDenied
+    justification, _ = AttendanceJustification.objects.get_or_create(
+        attendance_record=record
+    )
+    if request.method == "POST":
+        form = AttendanceJustificationForm(request.POST, request.FILES, instance=justification)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Justificación enviada. Quedará pendiente de aprobación.")
+            return redirect("home")
+        messages.error(request, "Revisa los errores del formulario.")
+    else:
+        form = AttendanceJustificationForm(instance=justification)
+    return render(
+        request,
+        "course/attendance_justification_form.html",
+        {"form": form, "record": record},
+    )
+
+
+@login_required
+def review_justification(request, pk):
+    justification = get_object_or_404(AttendanceJustification, pk=pk)
+    section = justification.attendance_record.session.section
+    user = request.user
+    allowed_roles = {User.Roles.BEDEL, User.Roles.ADMIN, User.Roles.MANAGEMENT}
+    is_teacher = section.teachers.filter(pk=user.pk).exists()
+    if not (user.role in allowed_roles or user.is_superuser or is_teacher):
+        raise PermissionDenied
+    if request.method == "POST":
+        form = AttendanceJustificationReviewForm(request.POST, instance=justification)
+        if form.is_valid():
+            justification = form.save(commit=False)
+            justification.reviewed_by = user
+            justification.reviewed_at = timezone.now()
+            justification.save()
+            if justification.status == AttendanceJustification.APPROVED:
+                justification.attendance_record.status = AttendanceRecord.JUSTIFIED
+                justification.attendance_record.save(update_fields=["status"])
+            messages.success(request, "Justificación actualizada.")
+            return redirect("section_sessions", pk=section.pk)
+        messages.error(request, "Ocurrió un error al actualizar.")
+    else:
+        form = AttendanceJustificationReviewForm(instance=justification)
+    return render(
+        request,
+        "course/attendance_justification_review.html",
+        {"form": form, "justification": justification},
+    )
 
 
 # ########################################################
@@ -205,13 +663,13 @@ class CourseAllocationFormView(CreateView):
         allocation, created = CourseAllocation.objects.get_or_create(lecturer=lecturer)
         allocation.courses.set(selected_courses)
         messages.success(
-            self.request, f"Courses allocated to {lecturer.get_full_name} successfully."
+            self.request, f"Se asignaron materias a {lecturer.get_full_name} correctamente."
         )
         return redirect("course_allocation_view")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Assign Course"
+        context["title"] = "Asignar materias"
         return context
 
 
@@ -222,7 +680,7 @@ class CourseAllocationFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Course Allocations"
+        context["title"] = "Asignaciones de materias"
         return context
 
 
@@ -234,15 +692,15 @@ def edit_allocated_course(request, pk):
         form = EditCourseAllocationForm(request.POST, instance=allocation)
         if form.is_valid():
             form.save()
-            messages.success(request, "Course allocation has been updated.")
+            messages.success(request, "Se actualizaron las asignaciones de materias.")
             return redirect("course_allocation_view")
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = EditCourseAllocationForm(instance=allocation)
     return render(
         request,
         "course/course_allocation_form.html",
-        {"title": "Edit Course Allocation", "form": form},
+        {"title": "Editar asignaciones", "form": form},
     )
 
 
@@ -251,7 +709,7 @@ def edit_allocated_course(request, pk):
 def deallocate_course(request, pk):
     allocation = get_object_or_404(CourseAllocation, pk=pk)
     allocation.delete()
-    messages.success(request, "Successfully deallocated courses.")
+    messages.success(request, "Se quitaron las asignaciones correctamente.")
     return redirect("course_allocation_view")
 
 
@@ -270,15 +728,15 @@ def handle_file_upload(request, slug):
             upload = form.save(commit=False)
             upload.course = course
             upload.save()
-            messages.success(request, f"{upload.title} has been uploaded.")
+            messages.success(request, f"Se subió '{upload.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = UploadFormFile()
     return render(
         request,
         "upload/upload_file_form.html",
-        {"title": "File Upload", "form": form, "course": course},
+        {"title": "Subir archivo", "form": form, "course": course},
     )
 
 
@@ -291,15 +749,15 @@ def handle_file_edit(request, slug, file_id):
         form = UploadFormFile(request.POST, request.FILES, instance=upload)
         if form.is_valid():
             upload = form.save()
-            messages.success(request, f"{upload.title} has been updated.")
+            messages.success(request, f"Se actualizó '{upload.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = UploadFormFile(instance=upload)
     return render(
         request,
         "upload/upload_file_form.html",
-        {"title": "Edit File", "form": form, "course": course},
+        {"title": "Editar archivo", "form": form, "course": course},
     )
 
 
@@ -309,7 +767,7 @@ def handle_file_delete(request, slug, file_id):
     upload = get_object_or_404(Upload, pk=file_id)
     title = upload.title
     upload.delete()
-    messages.success(request, f"{title} has been deleted.")
+    messages.success(request, f"Se eliminó '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -328,15 +786,15 @@ def handle_video_upload(request, slug):
             video = form.save(commit=False)
             video.course = course
             video.save()
-            messages.success(request, f"{video.title} has been uploaded.")
+            messages.success(request, f"Se subió el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = UploadFormVideo()
     return render(
         request,
         "upload/upload_video_form.html",
-        {"title": "Video Upload", "form": form, "course": course},
+        {"title": "Subir video", "form": form, "course": course},
     )
 
 
@@ -360,15 +818,15 @@ def handle_video_edit(request, slug, video_slug):
         form = UploadFormVideo(request.POST, request.FILES, instance=video)
         if form.is_valid():
             video = form.save()
-            messages.success(request, f"{video.title} has been updated.")
+            messages.success(request, f"Se actualizó el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
-        messages.error(request, "Correct the error(s) below.")
+        messages.error(request, "Corrige los errores indicados abajo.")
     else:
         form = UploadFormVideo(instance=video)
     return render(
         request,
         "upload/upload_video_form.html",
-        {"title": "Edit Video", "form": form, "course": course},
+        {"title": "Editar video", "form": form, "course": course},
     )
 
 
@@ -378,7 +836,7 @@ def handle_video_delete(request, slug, video_slug):
     video = get_object_or_404(UploadVideo, slug=video_slug)
     title = video.title
     video.delete()
-    messages.success(request, f"{title} has been deleted.")
+    messages.success(request, f"Se eliminó el video '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -401,12 +859,12 @@ def course_registration(request):
             course = Course.objects.get(pk=ids[s])
             obj = TakenCourse.objects.create(student=student, course=course)
             obj.save()
-        messages.success(request, "Courses registered successfully!")
+        messages.success(request, "Materias inscriptas correctamente.")
         return redirect("course_registration")
     else:
         current_semester = Semester.objects.filter(is_current_semester=True).first()
         if not current_semester:
-            messages.error(request, "No active semester found.")
+            messages.error(request, "No se encontró un cuatrimestre activo.")
             return render(request, "course/course_registration.html")
 
         # student = Student.objects.get(student__pk=request.user.id)
@@ -476,7 +934,7 @@ def course_drop(request):
         for course_id in course_ids:
             course = get_object_or_404(Course, pk=course_id)
             TakenCourse.objects.filter(student=student, course=course).delete()
-        messages.success(request, "Courses dropped successfully!")
+        messages.success(request, "Se dio de baja a las materias seleccionadas.")
         return redirect("course_registration")
 
 
@@ -502,3 +960,4 @@ def user_course_list(request):
 
     # For other users
     return render(request, "course/user_course_list.html")
+

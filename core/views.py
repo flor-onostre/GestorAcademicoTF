@@ -1,11 +1,50 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db import models
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.utils import timezone
 
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import User, Student
-from .forms import SessionForm, SemesterForm, NewsAndEventsForm
-from .models import NewsAndEvents, ActivityLog, Session, Semester
+from course.models import Course, CourseSection, Program
+from .forms import (
+    BuildingFloorForm,
+    NewsAndEventsForm,
+    RoomForm,
+    SemesterForm,
+    SessionForm,
+)
+from .models import (
+    ActivityLog,
+    AttendanceRecord,
+    BuildingFloor,
+    BulkUploadRequest,
+    EventInvitation,
+    NewsAndEvents,
+    Room,
+    SectionSession,
+    Session,
+    Semester,
+    PUBLISHER_ROLES,
+)
+
+
+def user_can_publish_news(user):
+    return user.is_authenticated and (
+        user.is_superuser or getattr(user, "role", None) in PUBLISHER_ROLES
+    )
+
+
+def ensure_publish_permission(user):
+    if not user_can_publish_news(user):
+        raise PermissionDenied
+
+
+def ensure_bedelia_access(user):
+    allowed = {User.Roles.BEDEL, User.Roles.MANAGEMENT, User.Roles.ADMIN}
+    if not (user.is_superuser or getattr(user, "role", None) in allowed):
+        raise PermissionDenied
 
 
 # ########################################################
@@ -13,17 +52,126 @@ from .models import NewsAndEvents, ActivityLog, Session, Semester
 # ########################################################
 @login_required
 def home_view(request):
-    items = NewsAndEvents.objects.all().order_by("-updated_date")
+    queryset = NewsAndEvents.objects.select_related("created_by").prefetch_related(
+        "target_programs",
+        "target_courses",
+        "target_sections",
+        "event_invitations__student__student",
+    )
+    user_programs = NewsAndEvents._program_ids_for_user(request.user)
+    user_courses = NewsAndEvents._course_ids_for_user(request.user)
+    user_sections = NewsAndEvents._section_ids_for_user(request.user)
+    student_profile = Student.objects.filter(student=request.user).first()
+    role_filter = request.GET.get("role") or ""
+    program_filter = request.GET.get("program")
+    course_filter = request.GET.get("course")
+    section_filter = request.GET.get("section")
+
+    def _parse_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    program_filter = _parse_int(program_filter)
+    course_filter = _parse_int(course_filter)
+    section_filter = _parse_int(section_filter)
+
+    items = []
+    for item in queryset:
+        if not item.can_view(request.user, user_programs, user_courses, user_sections):
+            continue
+        if role_filter and role_filter != "ALL":
+            audience = set(item.audience_roles or [])
+            if audience and role_filter not in audience:
+                continue
+        if program_filter:
+            program_ids = set(item.target_programs.values_list("id", flat=True))
+            if not program_ids or program_filter not in program_ids:
+                continue
+        if course_filter:
+            course_ids = set(item.target_courses.values_list("id", flat=True))
+            if not course_ids or course_filter not in course_ids:
+                continue
+        if section_filter:
+            section_ids = set(item.target_sections.values_list("id", flat=True))
+            if not section_ids or section_filter not in section_ids:
+                continue
+        item.user_can_manage = item.can_be_managed_by(request.user)
+        item.role_labels = [
+            dict(User.Roles.choices).get(role, role)
+            for role in (item.audience_roles or [])
+        ]
+        item.program_names = list(
+            item.target_programs.values_list("title", flat=True)
+        )
+        item.course_names = list(item.target_courses.values_list("title", flat=True))
+        item.section_names = [
+            f"{section.course.title} ({section.turn.name})"
+            for section in item.target_sections.all()
+        ]
+        if student_profile and item.is_event:
+            item.invitation = item.event_invitations.filter(
+                student=student_profile
+            ).first()
+        items.append(item)
     context = {
-        "title": "News & Events",
+        "title": "Noticias y Eventos",
         "items": items,
+        "can_publish": user_can_publish_news(request.user),
+        "role_choices": User.Roles.choices,
+        "program_choices": Program.objects.order_by("title"),
+        "course_choices": Course.objects.order_by("title"),
+        "section_choices": CourseSection.objects.order_by("course__title"),
+        "selected_filters": {
+            "role": role_filter,
+            "program": program_filter or "",
+            "course": course_filter or "",
+            "section": section_filter or "",
+        },
     }
     return render(request, "core/index.html", context)
 
 
 @login_required
+def attendance_dashboard(request):
+    ensure_bedelia_access(request.user)
+    missing_sessions = (
+        SectionSession.objects.filter(
+            attendance_submitted=False, is_cancelled=False, date__lte=timezone.now()
+        )
+        .select_related("section__course", "section__program", "section__room")
+        .order_by("date")
+    )
+    absence_stats = (
+        AttendanceRecord.objects.filter(status=AttendanceRecord.ABSENT)
+        .values("session__section__course__title")
+        .annotate(total=models.Count("id"))
+        .order_by("-total")[:10]
+    )
+    room_usage = (
+        CourseSection.objects.exclude(room__isnull=True)
+        .values("room__code")
+        .annotate(total=models.Count("id"))
+        .order_by("-total")
+    )
+    context = {
+        "missing_sessions": missing_sessions,
+        "absence_stats": absence_stats,
+        "room_usage": room_usage,
+        "uploads_pending": BulkUploadRequest.objects.filter(
+            status=BulkUploadRequest.Status.RECEIVED
+        )
+        .select_related("section__course")
+        .order_by("-created_at"),
+    }
+    return render(request, "core/attendance_dashboard.html", context)
+
+
+@login_required
 @admin_required
 def dashboard_view(request):
+    
     logs = ActivityLog.objects.all().order_by("-created_at")[:10]
     gender_count = Student.get_gender_count()
     context = {
@@ -39,43 +187,76 @@ def dashboard_view(request):
 
 @login_required
 def post_add(request):
+    ensure_publish_permission(request.user)
     if request.method == "POST":
-        form = NewsAndEventsForm(request.POST)
-        title = form.cleaned_data.get("title", "Post") if form.is_valid() else None
+        form = NewsAndEventsForm(request.POST, user=request.user)
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
-            form.save()
-            messages.success(request, f"{title} has been uploaded.")
+            instance = form.save(commit=False)
+            instance.created_by = request.user
+            instance.save()
+            form.save_m2m()
+            messages.success(request, f"{title} fue publicada correctamente.")
             return redirect("home")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
-        form = NewsAndEventsForm()
-    return render(request, "core/post_add.html", {"title": "Add Post", "form": form})
+        form = NewsAndEventsForm(user=request.user)
+    return render(request, "core/post_add.html", {"title": "Agregar publicación", "form": form})
 
 
 @login_required
-@lecturer_required
 def edit_post(request, pk):
     instance = get_object_or_404(NewsAndEvents, pk=pk)
+    if not instance.can_be_managed_by(request.user):
+        raise PermissionDenied
     if request.method == "POST":
-        form = NewsAndEventsForm(request.POST, instance=instance)
-        title = form.cleaned_data.get("title", "Post") if form.is_valid() else None
+        form = NewsAndEventsForm(
+            request.POST, instance=instance, user=request.user
+        )
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
             form.save()
-            messages.success(request, f"{title} has been updated.")
+            messages.success(request, f"{title} fue actualizada correctamente.")
             return redirect("home")
-        messages.error(request, "Please correct the error(s) below.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
-        form = NewsAndEventsForm(instance=instance)
-    return render(request, "core/post_add.html", {"title": "Edit Post", "form": form})
+        form = NewsAndEventsForm(instance=instance, user=request.user)
+    return render(request, "core/post_add.html", {"title": "Editar publicación", "form": form})
 
 
 @login_required
-@lecturer_required
 def delete_post(request, pk):
     post = get_object_or_404(NewsAndEvents, pk=pk)
+    if not post.can_be_managed_by(request.user):
+        raise PermissionDenied
     post_title = post.title
     post.delete()
-    messages.success(request, f"{post_title} has been deleted.")
+    messages.success(request, f"{post_title} fue eliminada correctamente.")
+    return redirect("home")
+
+
+@login_required
+def event_invitation_response(request, pk):
+    event = get_object_or_404(NewsAndEvents, pk=pk)
+    if not event.is_event:
+        raise PermissionDenied
+    student = Student.objects.filter(student=request.user).first()
+    if not student:
+        messages.error(request, "Solo los alumnos pueden gestionar invitaciones.")
+        return redirect("home")
+    invitation = get_object_or_404(
+        EventInvitation,
+        event=event,
+        student=student,
+    )
+    status = request.POST.get("status")
+    if status in {EventInvitation.ACCEPTED, EventInvitation.DECLINED}:
+        invitation.status = status
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=["status", "responded_at"])
+        messages.success(request, "Tu respuesta fue registrada.")
+    else:
+        messages.error(request, "No se reconoció la acción solicitada.")
     return redirect("home")
 
 
@@ -83,7 +264,7 @@ def delete_post(request, pk):
 # Session
 # ########################################################
 @login_required
-@lecturer_required
+@admin_required
 def session_list_view(request):
     """Show list of all sessions"""
     sessions = Session.objects.all().order_by("-is_current_session", "-session")
@@ -91,7 +272,7 @@ def session_list_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def session_add_view(request):
     """Add a new session"""
     if request.method == "POST":
@@ -100,7 +281,7 @@ def session_add_view(request):
             if form.cleaned_data.get("is_current_session"):
                 unset_current_session()
             form.save()
-            messages.success(request, "Session added successfully.")
+            messages.success(request, "Ciclo lectivo agregado correctamente.")
             return redirect("session_list")
     else:
         form = SessionForm()
@@ -108,7 +289,7 @@ def session_add_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def session_update_view(request, pk):
     session = get_object_or_404(Session, pk=pk)
     if request.method == "POST":
@@ -117,7 +298,7 @@ def session_update_view(request, pk):
             if form.cleaned_data.get("is_current_session"):
                 unset_current_session()
             form.save()
-            messages.success(request, "Session updated successfully.")
+            messages.success(request, "Ciclo lectivo actualizado correctamente.")
             return redirect("session_list")
     else:
         form = SessionForm(instance=session)
@@ -125,14 +306,14 @@ def session_update_view(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def session_delete_view(request, pk):
     session = get_object_or_404(Session, pk=pk)
     if session.is_current_session:
-        messages.error(request, "You cannot delete the current session.")
+        messages.error(request, "No podés eliminar el ciclo lectivo actual.")
     else:
         session.delete()
-        messages.success(request, "Session successfully deleted.")
+        messages.success(request, "Ciclo lectivo eliminado correctamente.")
     return redirect("session_list")
 
 
@@ -148,14 +329,14 @@ def unset_current_session():
 # Semester
 # ########################################################
 @login_required
-@lecturer_required
+@admin_required
 def semester_list_view(request):
     semesters = Semester.objects.all().order_by("-is_current_semester", "-semester")
     return render(request, "core/semester_list.html", {"semesters": semesters})
 
 
 @login_required
-@lecturer_required
+@admin_required
 def semester_add_view(request):
     if request.method == "POST":
         form = SemesterForm(request.POST)
@@ -164,7 +345,7 @@ def semester_add_view(request):
                 unset_current_semester()
                 unset_current_session()
             form.save()
-            messages.success(request, "Semester added successfully.")
+            messages.success(request, "Cuatrimestre agregado correctamente.")
             return redirect("semester_list")
     else:
         form = SemesterForm()
@@ -172,7 +353,7 @@ def semester_add_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def semester_update_view(request, pk):
     semester = get_object_or_404(Semester, pk=pk)
     if request.method == "POST":
@@ -182,7 +363,7 @@ def semester_update_view(request, pk):
                 unset_current_semester()
                 unset_current_session()
             form.save()
-            messages.success(request, "Semester updated successfully!")
+            messages.success(request, "¡Cuatrimestre actualizado correctamente!")
             return redirect("semester_list")
     else:
         form = SemesterForm(instance=semester)
@@ -190,14 +371,14 @@ def semester_update_view(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def semester_delete_view(request, pk):
     semester = get_object_or_404(Semester, pk=pk)
     if semester.is_current_semester:
-        messages.error(request, "You cannot delete the current semester.")
+        messages.error(request, "No podés eliminar el cuatrimestre actual.")
     else:
         semester.delete()
-        messages.success(request, "Semester successfully deleted.")
+        messages.success(request, "Cuatrimestre eliminado correctamente.")
     return redirect("semester_list")
 
 
@@ -207,3 +388,147 @@ def unset_current_semester():
     if current_semester:
         current_semester.is_current_semester = False
         current_semester.save()
+
+
+# ########################################################
+# Building structure (Pisos y aulas)
+# ########################################################
+
+
+@login_required
+@admin_required
+def floor_list_view(request):
+    floors = (
+        BuildingFloor.objects.all()
+        .prefetch_related("rooms")
+        .order_by("number", "name")
+    )
+    return render(
+        request,
+        "core/floor_list.html",
+        {
+            "floors": floors,
+            "title": "Pisos y espacios",
+        },
+    )
+
+
+@login_required
+@admin_required
+def floor_create_view(request):
+    if request.method == "POST":
+        form = BuildingFloorForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Piso creado correctamente.")
+            return redirect("floor_list")
+        messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = BuildingFloorForm()
+    return render(request, "core/floor_form.html", {"form": form, "title": "Nuevo piso"})
+
+
+@login_required
+@admin_required
+def floor_update_view(request, pk):
+    floor = get_object_or_404(BuildingFloor, pk=pk)
+    if request.method == "POST":
+        form = BuildingFloorForm(request.POST, instance=floor)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Piso actualizado correctamente.")
+            return redirect("floor_list")
+        messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = BuildingFloorForm(instance=floor)
+    return render(
+        request, "core/floor_form.html", {"form": form, "title": "Editar piso"}
+    )
+
+
+@login_required
+@admin_required
+def floor_delete_view(request, pk):
+    floor = get_object_or_404(BuildingFloor, pk=pk)
+    if request.method == "POST":
+        floor.delete()
+        messages.success(request, "Piso eliminado correctamente.")
+        return redirect("floor_list")
+    return render(
+        request,
+        "core/floor_confirm_delete.html",
+        {"floor": floor},
+    )
+
+
+@login_required
+@admin_required
+def room_list_view(request):
+    floors = BuildingFloor.objects.all().order_by("number")
+    selected_floor = request.GET.get("floor")
+    rooms = Room.objects.select_related("floor").order_by("floor__number", "code")
+    if selected_floor:
+        rooms = rooms.filter(floor_id=selected_floor)
+    return render(
+        request,
+        "core/room_list.html",
+        {
+            "rooms": rooms,
+            "floors": floors,
+            "selected_floor": selected_floor,
+        },
+    )
+
+
+@login_required
+@admin_required
+def room_create_view(request):
+    if request.method == "POST":
+        form = RoomForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Espacio creado correctamente.")
+            return redirect("room_list")
+        messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = RoomForm()
+    return render(
+        request,
+        "core/room_form.html",
+        {"form": form, "title": "Nuevo aula / laboratorio"},
+    )
+
+
+@login_required
+@admin_required
+def room_update_view(request, pk):
+    room = get_object_or_404(Room, pk=pk)
+    if request.method == "POST":
+        form = RoomForm(request.POST, instance=room)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Espacio actualizado correctamente.")
+            return redirect("room_list")
+        messages.error(request, "Corregí los errores indicados abajo.")
+    else:
+        form = RoomForm(instance=room)
+    return render(
+        request,
+        "core/room_form.html",
+        {"form": form, "title": "Editar aula / laboratorio"},
+    )
+
+
+@login_required
+@admin_required
+def room_delete_view(request, pk):
+    room = get_object_or_404(Room, pk=pk)
+    if request.method == "POST":
+        room.delete()
+        messages.success(request, "Espacio eliminado correctamente.")
+        return redirect("room_list")
+    return render(
+        request,
+        "core/room_confirm_delete.html",
+        {"room": room},
+    )

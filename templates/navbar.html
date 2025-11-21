@@ -26,7 +26,7 @@
 						</div>
 	
 						<p class="small text-muted text-center mb-0">
-							{% trans 'Última sesión:' %} {{ request.user.last_login|date }}</p>
+							{% trans 'Última sesión:' %} {{ request.user.last_login|date:"d/m/Y H:i" }}</p>
 					</div>
 					<hr>
 
@@ -35,11 +35,11 @@
 					{% endif %}
 
 					{% if request.user.is_superuser %}
-					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Panel Admin' %}</a>
+					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Panel de Administrador' %}</a>
 					{% endif %}
 
 					<a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>{% trans 'Perfil' %}</a>
-					<a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-cog me-2"></i>{% trans 'Ajustes' %}</a>
+					<a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-cog me-2"></i>{% trans 'Ajustes de Cuenta' %}</a>
 					<hr>
 					<div style="display: flex; justify-content: center; align-items: center;">
 						<a class="btn btn-secondary" href="{% url 'logout' %}">

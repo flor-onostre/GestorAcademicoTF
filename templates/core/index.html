@@ -1,34 +1,70 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 {% load static %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Home' %}</li>
+      <li class="breadcrumb-item active" aria-current="page">{% trans 'Inicio' %}</li>
     </ol>
 </nav>
 
-{% if request.user.is_superuser %}
-<div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'add_item' %}"><i class="fas fa-plus"></i>{% trans 'Add New Post' %}</a>
+{% if can_publish %}
+<div class="manage-wrap mb-3">
+    <a class="btn btn-primary" href="{% url 'add_item' %}"><i class="fas fa-plus"></i> {% trans 'Agregar publicación' %}</a>
 </div>
 {% endif %}
 
 {% include 'snippets/messages.html' %}
 
-<div>
-    <div class="title-1">{% trans 'News' %} &amp; {% trans 'Events' %}</div>
-</div>
-
-<div class="col-md-2 ms-auto d-flex">
-    <div class="me-3">
-        <span class="color-indicator bg-primary"></span> {% trans 'News' %}
-    </div>
-    <div>
-        <span class="color-indicator bg-purple"></span> {% trans 'Events' %}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="id_role" class="form-label">{% trans 'Rol destinatario' %}</label>
+                <select name="role" id="id_role" class="form-select">
+                    <option value="">{% trans 'Todos' %}</option>
+                    {% for value,label in role_choices %}
+                        <option value="{{ value }}" {% if selected_filters.role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="id_program" class="form-label">{% trans 'Carrera' %}</label>
+                <select name="program" id="id_program" class="form-select">
+                    <option value="">{% trans 'Todas' %}</option>
+                    {% for program in program_choices %}
+                        <option value="{{ program.id }}" {% if selected_filters.program == program.id %}selected{% endif %}>{{ program.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="id_course" class="form-label">{% trans 'Materia' %}</label>
+                <select name="course" id="id_course" class="form-select">
+                    <option value="">{% trans 'Todas' %}</option>
+                    {% for course in course_choices %}
+                        <option value="{{ course.id }}" {% if selected_filters.course == course.id %}selected{% endif %}>{{ course.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="id_section" class="form-label">{% trans 'Comisión' %}</label>
+                <select name="section" id="id_section" class="form-select">
+                    <option value="">{% trans 'Todas' %}</option>
+                    {% for section in section_choices %}
+                        <option value="{{ section.id }}" {% if selected_filters.section == section.id %}selected{% endif %}>
+                            {{ section.course.title }} ({{ section.turn.name }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-12 text-end">
+                <button type="submit" class="btn btn-primary me-2">{% trans 'Filtrar' %}</button>
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary">{% trans 'Limpiar filtros' %}</a>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -37,45 +73,61 @@
     <div class="row">
         {% for item in items %}
         <div class="col-md-4 mb-4">
-            <div class="bg-white border">
-                <div class="card-header-ne {% if item.posted_as == 'News' %}{% trans 'news' %}{% else %}{% trans 'events' %}{% endif %} p-2">
-                    <span class="p-0">
-                        {{ item.title|title }}
-                    </span>
-                    {% if request.user.is_superuser %}
+            <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="badge {% if item.is_event %}bg-purple{% else %}bg-primary{% endif %} text-uppercase">{{ item.get_posted_as_display }}</span>
+                    <small class="text-muted">{% trans 'hace' %} {{ item.updated_date|timesince }}</small>
+                    {% if item.user_can_manage %}
                     <div class="dropstart">
                         <button class="btn btn-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-ellipsis-v text-white"></i>
+                            <i class="fas fa-ellipsis-v text-secondary"></i>
                         </button>
                         <div class="dropdown-menu">
-                            <a class="dropdown-item" href="{% url 'edit_post' pk=item.id %}"><i
-                                    class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Edit' %}</a>
-                            <a class="dropdown-item" href="{% url 'delete_post' pk=item.id %}"><i
-                                    class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}</a>
+                            <a class="dropdown-item" href="{% url 'edit_post' pk=item.id %}"><i class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Editar' %}</a>
+                            <a class="dropdown-item" href="{% url 'delete_post' pk=item.id %}"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Eliminar' %}</a>
                         </div>
                     </div>
                     {% endif %}
                 </div>
-
-                <div class="p-2 my-2" style="min-height: 120px;">{{ item.summary }}</div>
-
-                <div class="bg-light p-1 small text-secondary text-end pe-3">
-                    <i class="fa fa-calendar small unstyled"></i>
-                    {{ item.updated_date|timesince }} {% trans 'ago' %}
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ item.title }}</h5>
+                    <p class="card-text">{{ item.summary }}</p>
+                    <ul class="list-unstyled small text-muted mt-2">
+                        {% if item.role_labels %}
+                        <li><strong>{% trans 'Roles' %}:</strong> {{ item.role_labels|join:", " }}</li>
+                        {% endif %}
+                        {% if item.program_names %}
+                        <li><strong>{% trans 'Carreras' %}:</strong> {{ item.program_names|join:", " }}</li>
+                        {% endif %}
+                        {% if item.course_names %}
+                        <li><strong>{% trans 'Materias' %}:</strong> {{ item.course_names|join:", " }}</li>
+                        {% endif %}
+                        {% if item.section_names %}
+                        <li><strong>{% trans 'Comisiones' %}:</strong> {{ item.section_names|join:", " }}</li>
+                        {% endif %}
+                    </ul>
+                    {% if item.invitation %}
+                        <div class="alert alert-info mt-2">
+                            <strong>{% trans 'Invitación' %}:</strong> {{ item.invitation.get_status_display }}
+                            {% if item.invitation.status == "PENDING" %}
+                                <form method="post" action="{% url 'event_invitation_response' item.id %}" class="mt-2 d-flex gap-2">
+                                    {% csrf_token %}
+                                    <button type="submit" name="status" value="ACCEPTED" class="btn btn-success btn-sm">{% trans 'Asistiré' %}</button>
+                                    <button type="submit" name="status" value="DECLINED" class="btn btn-outline-danger btn-sm">{% trans 'No asistiré' %}</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
-
             </div>
         </div>
         {% endfor %}
     </div>
-
     {% else %}
     <h4 class="text-center mt-5 py-5 text-muted">
-        <i class="fa-regular fa-folder-open me-2"></i>{% trans 'School news and events will appear here.' %}
+        <i class="fa-regular fa-folder-open me-2"></i>{% trans 'Aquí aparecerán las noticias y eventos de la institución.' %}
     </h4>
-
     {% endif %}
-
 </div>
 
 {% endblock content %}

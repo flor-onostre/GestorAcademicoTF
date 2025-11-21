@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% trans 'Search result for' %} {{ query }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %}{% trans 'Resultados para' %} {{ query }} | {% trans 'Gestor Académico' %}{% endblock title %}
 
 {% load class_name %}
 
@@ -8,50 +8,50 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Search' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Búsqueda' %}</li>
     </ol>
 </nav>  
 
 <div class="card p-3" style="box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.3); border-radius: 10px;">
-    <h5 class="text-muted m-0">{{ count }} {% trans 'result' %}{{ count|pluralize }} {% trans 'for' %} <b><em class="text-orange"> {{ query }}</em></b></h5>
+    <h5 class="text-muted m-0">{{ count }} {% trans 'resultado' %}{{ count|pluralize:"s" }} {% trans 'para' %} <b><em class="text-orange"> {{ query }}</em></b></h5>
     <hr>
     {% for object in object_list %}
         {% with object|class_name as klass %}
         {% if klass == "Program" %}
             <div class="col-12 class-item">
-                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Program' %}</span>
+                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Carrera' %}</span>
                 <h5><a href="{{ object.get_absolute_url }}"><b>{{ object.title}}</b></a></h5>
                 <p>{{ object.summary }}</p>
             </div><hr>
 
         {% elif klass == "Course" %}
             <div class="col-12 class-item">
-                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Course' %}</span>
-                <p><b>{% trans 'Program of' %}</b> {{ object.program }}</p>
+                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Materia' %}</span>
+                <p><b>{% trans 'Carrera de' %}</b> {{ object.program }}</p>
                 <h5><a href="{{ object.get_absolute_url }}"><b>{{ object }}</b></a></h5>
                 <p>{{ object.summary }}</p>
             </div><hr>
             
         {% elif klass == "NewsAndEvents" %}
             <div class="col-12 class-item">
-                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'News And Events' %}</span>
-                <p><b>{% trans 'Date:' %} </b> {{ object.updated_date|timesince }} ago</p>
+                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Noticias y Eventos' %}</span>
+                <p><b>{% trans 'Fecha:' %} </b> {% trans 'hace' %} {{ object.updated_date|timesince }}</p>
                 <h5><a href="{{ object.get_absolute_url }}"><b>{{ object.title }}</b></a></h5>
                 <p>{{ object.summary }}</p>
             </div><hr>
 
         {% elif klass == "Quiz" %}
             <div class="col-12 class-item">
-                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Quiz' %}</span>
-                <p>{{ object.category }} {% trans 'quiz' %},  <b>{% trans 'Course:' %}</b> {{ object.course }}</p>
+                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Cuestionario' %}</span>
+                <p>{{ object.category }} {% trans 'cuestionario' %},  <b>{% trans 'Materia:' %}</b> {{ object.course }}</p>
                 <h5><a href="{{ object.get_absolute_url }}"><b>{{ object.title }}</b></a></h5>
                 <p>{{ object.description }}</p>
             </div><hr>
 
         {% else %}
             <div class="col-12 col-lg-8 offset-lg-4">
-                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Program' %}</span>
+                <span class="bg-secondary text-light small px-2 rounded-pill">{% trans 'Carrera' %}</span>
                 <a href="{{ object.get_absolute_url }}" class="class-item d-flex">{{ object }} | {{ object|class_name }}</a>
             </div><hr>
             <div class="col-12 class-item">
@@ -70,8 +70,8 @@
     
         <div class="input-group form-group-no-border mx-auto" style="margin-bottom: 0px; font-size: 32px;">
             <input type="text" name="q" data-toggle="popover" data-placement="bottom" 
-            data-content="Press enter to search" class="form-control cfe-nav" 
-            placeholder="Search..." value="{{ request.GET.q }}" data-original-title="" title="" 
+            data-content="Presioná Enter para buscar" class="form-control cfe-nav" 
+            placeholder="Buscar..." value="{{ request.GET.q }}" data-original-title="" title="" 
             autofocus="autofocus" required>
             <button type="submit" class="btn btn-dark">
                 <i class="fa fa-search" aria-hidden="true"></i>
@@ -82,12 +82,12 @@
 
     </div>
     <div class="col-12 pl-5">
-    <h5>{% trans 'Search by:' %}</h5>
+    <h5>{% trans 'Buscar por:' %}</h5>
     <ul class="pl-3">
-        <li>{% trans 'Program' %} <span class="text-orange">&gt;</span> {% trans 'Title or Description' %}</li>
-        <li>{% trans 'Course' %} <span class="text-orange">&gt;</span>{% trans 'Title, Code or Description' %}</li>
-        <li>{% trans 'News And Events' %} <span class="text-orange">&gt;</span> {% trans 'Title, Description or just by typing news or event' %}li>
-        <li>{% trans 'Quiz' %} <span class="text-orange">&gt;</span>{% trans 'Title, Description or Category(practice, assignment and exam)' %}</li>
+        <li>{% trans 'Carrera' %} <span class="text-orange">&gt;</span> {% trans 'Título o descripción' %}</li>
+        <li>{% trans 'Materia' %} <span class="text-orange">&gt;</span>{% trans 'Título, código o descripción' %}</li>
+        <li>{% trans 'Noticias y Eventos' %} <span class="text-orange">&gt;</span> {% trans 'Título, descripción o escribiendo noticia/evento' %}</li>
+        <li>{% trans 'Cuestionario' %} <span class="text-orange">&gt;</span>{% trans 'Título, descripción o categoría (práctica, trabajo, examen)' %}</li>
     </ul>
     </div>
 </div>

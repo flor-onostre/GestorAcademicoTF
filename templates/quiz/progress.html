@@ -1,32 +1,32 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %} {% trans "Progress Page" %} | {% trans 'Learning management system' %} {% endblock %}
-{% block description %} {% trans "User Progress Page" %} {% endblock %}
+{% block title %} {% trans "Página de progreso" %} | {% trans 'Gestor Académico' %} {% endblock %}
+{% block description %} {% trans "Página de progreso del usuario" %} {% endblock %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans 'Progress Page' %}</li>
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Página de progreso' %}</li>
     </ol>
 </nav>
 
-<p class="title-1"><i class="fas fa-record-vinyl"></i>{% trans 'Quiz Progress Rec' %}</p>
+<p class="title-1"><i class="fas fa-record-vinyl"></i>{% trans 'Registro de evaluaciones' %}</p>
 
   {% if cat_scores %}
 
-  <div class="header-title text-center">{% trans "Question Category Scores" %}</div>
+  <div class="header-title text-center">{% trans "Resultados por categoría" %}</div>
   <div class="title-line"></div>
 
   <table class="table table-bordered table-striped">
 
 	<thead>
 	  <tr>
-		<th>{% trans "Category" %}</th>
-		<th>{% trans "Correctly answererd" %}</th>
-		<th>{% trans "Incorrect" %}</th>
+		<th>{% trans "Categoría" %}</th>
+		<th>{% trans "Correctas" %}</th>
+		<th>{% trans "Incorrectas" %}</th>
 		<th>%</th>
 	  </tr>
 	</thead>
@@ -53,25 +53,25 @@
 
   {% if exams %}
 
-  <div class="header-title-xl">{% trans "Previous exam papers" %}</div>
+  <div class="header-title-xl">{% trans "Exámenes anteriores" %}</div>
   <p class="lead fw-bold">
 	{% if request.user.is_superuser %}
-	{% trans "Student exam results" %}
+	{% trans "Resultados de exámenes del estudiante" %}
 	{% else %}
-	{% trans "Below are the results of exams that you have sat" %}
+	{% trans "A continuación se muestran los resultados de tus exámenes" %}
 	{% endif %}
   </p>
-  <div class="text-light bg-secondary mb-2 p-1">{% trans 'Total complete exams:' %} {{ exams_counter }}</div>
+  <div class="text-light bg-secondary mb-2 p-1">{% trans 'Total de exámenes completados:' %} {{ exams_counter }}</div>
 <div class="table-responsive">
   <table class="table table-bordered table-striped">
 
 	<thead>
 	  <tr>
 		<th>#</th>
-		<th>{% trans "Quiz Title" %}</th>
-		<th>{% trans "Score" %}</th>
-		<th>{% trans "Possible Score" %}</th>
-		<th>{% trans 'Out of 100%' %}</th>
+		<th>{% trans "Título de la evaluación" %}</th>
+		<th>{% trans "Puntaje" %}</th>
+		<th>{% trans "Puntaje posible" %}</th>
+		<th>{% trans 'Sobre 100%' %}</th>
 	  </tr>
 	</thead>
 
@@ -96,7 +96,7 @@
   {% endif %}
   {% if not cat_scores and not exams %}
   <h4 class="text-center mt-5 py-5 text-muted">
-	  <i class="fa-regular fa-folder-open me-2"></i>{% trans 'Progress records will appear here' %}
+	  <i class="fa-regular fa-folder-open me-2"></i>{% trans 'Los registros de progreso aparecerán aquí' %}
   </h4>
   {% endif %}
 

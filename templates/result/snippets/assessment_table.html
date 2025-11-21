@@ -1,0 +1,62 @@
+{% load i18n %}
+<div class="table-responsive mb-4">
+  <div class="table-title"><u>{{ semester_label }}:</u></div>
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{% trans 'Materia' %}</th>
+        <th>{% trans 'Código' %}</th>
+        <th>{% trans 'Créditos' %}</th>
+        <th>{% trans 'Trabajos prácticos' %}</th>
+        <th>{% trans 'Evaluaciones cortas' %}</th>
+        <th>{% trans 'Primer parcial' %}</th>
+        <th>{% trans 'Segundo parcial' %}</th>
+        <th>{% trans 'Asistencia (%)' %}</th>
+        <th>{% trans 'Examen final' %}</th>
+        <th>{% trans 'Total' %}</th>
+        <th>{% trans 'Estado final' %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+        {% if course.course.semester == semester_key %}
+        <tr>
+          <th>{{ forloop.counter }}</th>
+          <td><a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a></td>
+          <td>{{ course.course.code }}</td>
+          <td>{{ course.course.credit }}</td>
+          <td>{{ course.assignment }}</td>
+          <td>{{ course.quiz }}</td>
+          <td>{{ course.first_partial|default:course.mid_exam }}</td>
+          <td>{{ course.second_partial|default:"-" }}</td>
+          <td>{{ course.attendance }}</td>
+          <td>{{ course.final_exam }}</td>
+          {% if course.total|default_if_none:0 >= 45 %}
+            <td class="table-success"><i class="fas fa-check-circle me-1"></i>{{ course.total }}</td>
+          {% else %}
+            <td class="table-danger"><i class="fas fa-exclamation-circle me-1"></i>{{ course.total }}</td>
+          {% endif %}
+          <td>
+            {% with status=course.completion_status %}
+              {% if status == 'PROMOTED' %}
+                <span class="badge bg-success">{% trans 'Promocionado' %}</span>
+              {% elif status == 'FINAL' %}
+                <span class="badge bg-warning text-dark">{% trans 'Debe rendir final' %}</span>
+              {% elif status == 'RETAKE' %}
+                <span class="badge bg-danger">{% trans 'Debe recursar' %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans 'En proceso' %}</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+        {% endif %}
+      {% empty %}
+        <tr>
+          <td colspan="12" class="text-center text-muted py-4">{% trans 'No se registran evaluaciones en este cuatrimestre.' %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

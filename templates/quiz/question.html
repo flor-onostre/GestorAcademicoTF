@@ -2,18 +2,18 @@
 {% load i18n%}
 
 
-{% block title %} {{ quiz.title }} | {% trans 'Learning management system' %} {% endblock %}
+{% block title %} {{ quiz.title }} | {% trans 'Gestor Académico' %} {% endblock %}
 {% block description %} {{ quiz.title }} - {{ quiz.description }} {% endblock %}
 
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
 	<ol class="breadcrumb">
-		<li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-		<li class="breadcrumb-item"><a href="{% url 'programs' %}">Programs</a></li>
+		<li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+		<li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Carreras' %}</a></li>
 		<li class="breadcrumb-item"><a href="{% url 'program_detail' course.program.id %}">{{ course.program }}</a></li>
 		<li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
-		<li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Quizzes' %}</a></li>
+		<li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Cuestionarios' %}</a></li>
 		<li class="breadcrumb-item active" aria-current="page">{{ quiz.title|title }}</li>
 	</ol>
 </nav>
@@ -105,7 +105,7 @@
 		<div class="modal-dialog">
 		  <div class="modal-content">
 			<div class="modal-header">
-			  <h1 class="modal-title fs-5" id="instractionModalLabel">{% trans 'Quiz instractions' %}</h1>
+			  <h1 class="modal-title fs-5" id="instractionModalLabel">{% trans 'Instrucciones del cuestionario' %}</h1>
 			  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
@@ -129,7 +129,7 @@
 	{% endif %}
 
 	<p>
-		<small class="muted">{% trans "Quiz category" %}:</small>
+		<small class="muted">{% trans "Categoría de la evaluación" %}:</small>
 		<strong>{{ quiz.category }}</strong>
 	</p>
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Student, Parent
+from .models import User, Student
 
 
 class UserAdmin(admin.ModelAdmin):
@@ -7,10 +7,12 @@ class UserAdmin(admin.ModelAdmin):
         "get_full_name",
         "username",
         "email",
+        "role",
+        "dni",
         "is_active",
+        "is_role_active",
         "is_student",
         "is_lecturer",
-        "is_parent",
         "is_staff",
     ]
     search_fields = [
@@ -18,11 +20,15 @@ class UserAdmin(admin.ModelAdmin):
         "first_name",
         "last_name",
         "email",
+        "role",
+        "dni",
         "is_active",
+        "is_role_active",
         "is_lecturer",
-        "is_parent",
         "is_staff",
     ]
+    # Texto visible en el buscador del admin (no cambia ninguna lógica)
+    search_help_text = "Buscar por usuario, nombre, apellido, email, estado y rol."
 
     class Meta:
         managed = True
@@ -30,6 +36,10 @@ class UserAdmin(admin.ModelAdmin):
         verbose_name_plural = "Users"
 
 
+# Textos visibles en la cabecera del panel de administración
+admin.site.site_header = "Administración de SkyLearn"
+admin.site.site_title = "Admin SkyLearn"
+admin.site.index_title = "Panel de administración"
+
 admin.site.register(User, UserAdmin)
 admin.site.register(Student)
-admin.site.register(Parent)

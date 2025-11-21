@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %} {{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+{% block title %} {{ title }} | {% trans 'Sistema de gestión de aprendizaje' %}{% endblock title %}
 
 {% load static %}
 
@@ -11,7 +11,7 @@
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+      <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
       <li class="breadcrumb-item active" aria-current="page">{{ user.get_full_name }}</li>
     </ol>
 </nav>
@@ -26,17 +26,17 @@
                 <img src="{{ user.picture.url }}" class="w-100">
                 <ul class="px-2 list-unstyled">
                     <li>{{ user.get_full_name|title }}</li>
-                    <li><strong>{% trans 'Last login:' %} </strong>{{ user.last_login|date }}</li>
-                    <li><strong>{% trans 'Role:' %} </strong>
+                    <li><strong>{% trans 'Último acceso:' %} </strong>{{ user.last_login|date }}</li>
+                    <li><strong>{% trans 'Rol:' %} </strong>
                         {{ user.get_user_role }}
                     </li>
                 </ul>
             </div>
             <hr>
             <a class="mb-2" href="{% url 'edit_profile' %}"><i class="fas fa-user-edit unstyled"></i>
-                <span class="mobile-hide">{% trans 'Edit Profile' %}</span></a>
+                <span class="mobile-hide">{% trans 'Editar perfil' %}</span></a>
             <a href="{% url 'change_password' %}"><i class="fas fa-lock unstyled"></i><span class="mobile-hide">
-                {% trans 'Change password' %}</span></a>
+                {% trans 'Cambiar contraseña' %}</span></a>
         </div>
     </div>
 
@@ -44,7 +44,7 @@
         <div class="card">
             <div class="card-body">
                 <!-- {% if user.is_student %}
-                <p class="form-title"><i class="fas fa-book-open"></i>Enrolled Courses</p>
+                <p class="form-title"><i class="fas fa-book-open"></i>Materias inscriptas</p>
                 <div class="dashboard-description">
                     {% if courses %}
                         <div class="flex">
@@ -53,13 +53,13 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                            <div class="text-danger"><i class="far fa-frown"></i>No courses!</div>
+                            <div class="text-danger"><i class="far fa-frown"></i>¡No hay materias!</div>
                     {% endif %}
                 </div>
                 {% endif %} -->
     
                 {% if user.is_lecturer %}
-                <p class="fw-bold"><i class="fas fa-book-open"></i> {% trans 'My Courses' %}</p>
+                <p class="fw-bold"><i class="fas fa-book-open"></i> {% trans 'Mis materias' %}</p>
                 {% if courses %}
                 <ul>
                     {% for course in courses %}
@@ -67,42 +67,42 @@
                     {% endfor %}
                 </ul>
                 {% else %}
-                <div class="text-danger">{% trans 'No courses assigned!' %}</div>
+                <div class="text-danger">{% trans '¡No hay materias asignadas!' %}</div>
                 {% endif %}
                 <hr>
                 {% endif %}
     
-                <p class="fw-bold"><i class="me-2 fas fa-user"></i>{% trans 'Personal Info' %}</p>
+                <p class="fw-bold"><i class="me-2 fas fa-user"></i>{% trans 'Información personal' %}</p>
                 <div class="dashboard-description">
-                    <p><strong>{% trans 'First Name:' %}</strong> {{ user.first_name|title }}</p>
-                    <p><strong>{% trans 'Last Name:' %}</strong> {{ user.last_name|title }}</p>
-                    <p><strong>{% trans 'ID No.:' %}</strong> {{ user.username }}</p>
+                    <p><strong>{% trans 'Nombre:' %}</strong> {{ user.first_name|title }}</p>
+                    <p><strong>{% trans 'Apellido:' %}</strong> {{ user.last_name|title }}</p>
+                    <p><strong>{% trans 'Nro. ID:' %}</strong> {{ user.username }}</p>
                 </div>
                 {% if user.is_student %}
                 <hr>
-                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i>{% trans 'Applicant Info' %}</p>
+                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i>{% trans 'Información del estudiante' %}</p>
                 <div class="dashboard-description">
-                    <p><strong>{% trans 'School:' %} </strong>{% trans 'Hawas Preparatory School' %}</p>
-                    <p><strong>{% trans 'Level:' %} </strong>{{ level.level }}</p>
+                    <p><strong>{% trans 'Universidad:' %} </strong>{% trans 'Universidad Tecnológica Nacional' %}</p>
+                    <p><strong>{% trans 'Nivel:' %} </strong>{{ level.level }}</p>
                 </div>
                 {% endif %}
     
                 <hr>
-                <p class="fw-bold"><i class="me-2 fas fa-phone-square-alt"></i>{% trans 'Contact Info' %}</p>
+                <p class="fw-bold"><i class="me-2 fas fa-phone-square-alt"></i>{% trans 'Información de contacto' %}</p>
                 <div class="dashboard-description">
-                    <p><strong>{% trans 'Email:' %}</strong> {{ user.email }}</p>
-                    <p><strong>{% trans 'Tel No.:' %}</strong> {{ user.phone }}</p>
-                    <p><strong>{% trans 'Address/city:' %}</strong> {{ user.address }}</p>
+                    <p><strong>{% trans 'Correo electrónico:' %}</strong> {{ user.email }}</p>
+                    <p><strong>{% trans 'Tel.:' %}</strong> {{ user.phone }}</p>
+                    <p><strong>{% trans 'Dirección / Ciudad:' %}</strong> {{ user.address }}</p>
                 </div>
     
                 <hr>
-                <p class="fw-bold"><i class="me-2 fa fa-calendar-day"></i>{% trans 'Important Dates' %}</p>
+                <p class="fw-bold"><i class="me-2 fa fa-calendar-day"></i>{% trans 'Fechas importantes' %}</p>
                 <div class="dashboard-description">
-                    <p><strong>{% trans 'Last login:' %}</strong> {{ user.last_login }}</p>
+                    <p><strong>{% trans 'Último acceso:' %}</strong> {{ user.last_login }}</p>
                     {% if current_semester and current_session %}
-                    <p><strong>{% trans 'Academic Year:' %}</strong> {{ current_semester }} {% trans 'Semester' %} {{ current_session }}</p>
+                    <p><strong>{% trans 'Año Académico:' %}</strong> {{ current_semester }} {% trans 'Semester' %} {{ current_session }}</p>
                     {% endif %}
-                    <p><strong>{% trans 'Registered Date:' %}</strong> {{ user.date_joined|date }}</p>
+                    <p><strong>{% trans 'Fecha de registro:' %}</strong> {{ user.date_joined|date }}</p>
                 </div>
             </div>
         </div>

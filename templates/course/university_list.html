@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Universidades' %}</li>
+    </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="table-responsive table-shadow">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>{% trans 'Nombre' %}</th>
+                <th>{% trans 'Sigla' %}</th>
+                <th>{% trans 'Activa' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for uni in universities %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ uni.name }}</td>
+                    <td>{{ uni.short_name }}</td>
+                    <td>
+                        {% if uni.is_active %}
+                            <span class="badge bg-success">{% trans 'Sí' %}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{% trans 'No' %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">{% trans 'No hay universidades registradas.' %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="manage-wrap d-flex justify-content-start mt-3">
+    <a class="btn btn-primary" href="{% url 'university_add' %}">
+        <i class="fas fa-plus"></i> {% trans 'Agregar universidad' %}
+    </a>
+</div>
+{% endblock %}
