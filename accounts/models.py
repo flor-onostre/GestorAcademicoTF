@@ -100,6 +100,10 @@ class User(AbstractUser):
         default=True,
         help_text=_("Activa o desactiva la participación según el rol (Bedel, Docente, etc.)."),
     )
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text=_("Debe cambiar la contraseña en el próximo inicio de sesión."),
+    )
     programs_as_teacher = models.ManyToManyField(
         Program,
         blank=True,

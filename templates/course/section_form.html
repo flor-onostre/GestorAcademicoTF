@@ -14,16 +14,53 @@
             {% endif %}
             <div class="row g-3">
                 {% for field in form %}
-                    <div class="col-md-6">
-                        <label class="form-label">{{ field.label }}{% if field.field.required %}*{% endif %}</label>
-                        {{ field }}
-                        {% if field.help_text %}
-                            <small class="form-text text-muted">{{ field.help_text }}</small>
-                        {% endif %}
-                        {% for error in field.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+                    {% with widget=field.field.widget %}
+                        {% with widget_type=widget.input_type|default:"" %}
+                            {% with is_multi=widget.allow_multiple_selected|default:False %}
+                                {% if field.name == "end_date" %}
+                                    {# handled with start_date below #}
+                                {% elif field.name == "start_date" %}
+                                    <div class="col-md-6">
+                                        <div class="row g-3">
+                                            <div class="col-sm-6">
+                                                <label class="form-label d-block">{{ form.start_date.label }}{% if form.start_date.field.required %}*{% endif %}</label>
+                                                {{ form.start_date }}
+                                                {% if form.start_date.help_text %}
+                                                    <small class="form-text text-muted">{{ form.start_date.help_text }}</small>
+                                                {% endif %}
+                                                {% for error in form.start_date.errors %}
+                                                    <div class="text-danger small">{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <label class="form-label d-block">{{ form.end_date.label }}{% if form.end_date.field.required %}*{% endif %}</label>
+                                                {{ form.end_date }}
+                                                {% if form.end_date.help_text %}
+                                                    <small class="form-text text-muted">{{ form.end_date.help_text }}</small>
+                                                {% endif %}
+                                                {% for error in form.end_date.errors %}
+                                                    <div class="text-danger small">{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="{% if widget_type == 'checkbox' and is_multi %}col-12{% else %}col-md-6{% endif %}">
+                                        <label class="form-label d-block">{{ field.label }}{% if field.field.required %}*{% endif %}</label>
+                                        <div class="{% if widget_type == 'checkbox' and is_multi %}form-check{% endif %}">
+                                            {{ field }}
+                                        </div>
+                                        {% if field.help_text %}
+                                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                                        {% endif %}
+                                        {% for error in field.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        {% endwith %}
+                    {% endwith %}
                 {% endfor %}
             </div>
             <div class="mt-4">

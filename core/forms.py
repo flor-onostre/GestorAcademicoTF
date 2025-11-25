@@ -346,8 +346,12 @@ class SectionSessionForm(forms.ModelForm):
         self.section = kwargs.pop("section", None)
         super().__init__(*args, **kwargs)
         self.fields["date"].widget.attrs.update({"class": "form-control", "type": "date"})
-        self.fields["start_time"].widget.attrs.update({"class": "form-control", "type": "time"})
-        self.fields["end_time"].widget.attrs.update({"class": "form-control", "type": "time"})
+        self.fields["start_time"].widget.attrs.update(
+            {"class": "form-control", "type": "time", "step": "900"}
+        )
+        self.fields["end_time"].widget.attrs.update(
+            {"class": "form-control", "type": "time", "step": "900"}
+        )
 
     def clean(self):
         cleaned = super().clean()

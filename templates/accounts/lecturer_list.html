@@ -23,16 +23,16 @@
 {% include 'snippets/messages.html' %}
 {% include 'snippets/filter_form.html' %}
 
-<div class="table-responsive table-shadow table-light table-striped m-0 mt-4">
+<div class="table-responsive table-shadow table-light table-striped m-0 mt-4" style="overflow: visible;">
     <table class="table">
         <thead>
             <tr>
                 <th>#</th>
                 <th> {% trans 'Nro. ID' %}' </th>
                 <th> {% trans 'Nombre completo' %} </th>
+                <th> {% trans 'Carreras' %} </th>
                 <th> {% trans 'Correo electrónico' %} </th>
                 <th> {% trans 'Tel.' %} </th>
-                <th> {% trans 'Dirección / Ciudad' %} </th>
                 <th> {% trans 'Último acceso' %}  </th>
                 {% if request.user.is_superuser %}
                 <th> {% trans 'Acción' %} </th>
@@ -45,17 +45,25 @@
                 <td> {{ forloop.counter }}.</td>
                 <td>{{ lecturer.username }}</td>
                 <td><a href="{% url 'profile_single' lecturer.id %}">{{ lecturer.get_full_name }}</a></td>
+                <td>
+                    {% with programs=lecturer.programs_as_teacher.all %}
+                        {% if programs %}
+                            {{ programs|join:", " }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    {% endwith %}
+                </td>
                 <td>{{ lecturer.email }}</td>
                 <td>{{ lecturer.phone }}</td>
-                <td>{{ lecturer.address }}</td>
                 <td>{{ lecturer.last_login }}</td>
                 {% if request.user.is_superuser %}
-                <td> 
-                    <div class="dropdown">
+                <td class="position-relative"> 
+                    <div class="dropdown dropup">
                         <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa fa-ellipsis-vertical"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
                           <li><a class="dropdown-item" href="{% url 'staff_edit' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Editar' %}</a></li>
                           <li><a class="dropdown-item"  target="_blank" href="{% url 'profile_single' lecturer.id %}?download_pdf=1"><i class="unstyled me-2 fas fa-download"></i>{% trans 'Descargar PDF' %}</a></li>
                           <li><a class="dropdown-item text-danger" href="{% url 'lecturer_delete' pk=lecturer.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i> {% trans 'Eliminar' %}</a></li>
@@ -66,7 +74,7 @@
                 
                 {% empty %}
                 <tr>
-                  <td colspan="8">
+                  <td colspan="7">
                   <span class="text-danger">
                     {% trans 'Sin docentes.' %}
                     {% if request.user.is_superuser %}
@@ -86,4 +94,3 @@
     </table>
 </div>
 {% endblock content %}
-
