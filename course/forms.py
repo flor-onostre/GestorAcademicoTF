@@ -232,8 +232,12 @@ class CourseSectionForm(forms.ModelForm):
         widgets = {
             "start_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "end_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-            "start_time": forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
-            "end_time": forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
+            "start_time": forms.TimeInput(
+                attrs={"class": "form-control", "type": "time", "step": "900"}
+            ),
+            "end_time": forms.TimeInput(
+                attrs={"class": "form-control", "type": "time", "step": "900"}
+            ),
             "days_of_week": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
@@ -257,8 +261,15 @@ class CourseSectionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-        # Ocultar campos que se derivan automáticamente
-        for fname in ["program", "attendance_required", "promotion_attendance_required", "max_capacity"]:
+        # Ocultar campos que se derivan automáticamente o se asignan luego (aula, alumnos)
+        for fname in [
+            "program",
+            "attendance_required",
+            "promotion_attendance_required",
+            "max_capacity",
+            "room",
+            "students",
+        ]:
             if fname in self.fields:
                 self.fields.pop(fname)
 
@@ -289,17 +300,32 @@ class CourseSectionForm(forms.ModelForm):
             self.fields["semester"].queryset = self.fields["semester"].queryset.filter(session_id=session_value)
             self.fields["session"].initial = session_value
 
+        # Filtrar docentes por carrera de la materia seleccionada
+        course_id = self.data.get("course") or getattr(self.instance, "course_id", None)
+        program_ids = []
+        if course_id:
+            try:
+                course = Course.objects.get(pk=course_id)
+                program_ids = list(course.programs.values_list("id", flat=True))
+            except Course.DoesNotExist:
+                program_ids = []
+
         for name, field in self.fields.items():
             widget = field.widget
             if name == "teachers":
                 self.fields[name].widget = forms.CheckboxSelectMultiple()
-                self.fields[name].queryset = User.objects.filter(role=User.Roles.TEACHER).order_by("first_name", "last_name")
+                teacher_qs = User.objects.filter(role=User.Roles.TEACHER)
+                if program_ids:
+                    teacher_qs = teacher_qs.filter(programs_as_teacher__in=program_ids).distinct()
+                self.fields[name].queryset = teacher_qs.order_by("first_name", "last_name")
+                # Mostrar sólo nombre y apellido en la etiqueta
+                self.fields[name].label_from_instance = (
+                    lambda obj: f"{obj.first_name} {obj.last_name}".strip()
+                )
                 widget = self.fields[name].widget
-            if name == "students":
-                self.fields[name].widget = forms.CheckboxSelectMultiple()
-                self.fields[name].queryset = User.objects.filter(role=User.Roles.STUDENT).order_by("first_name", "last_name")
-                widget = self.fields[name].widget
-            if isinstance(widget, (forms.CheckboxInput, forms.CheckboxSelectMultiple)):
+            if isinstance(widget, forms.CheckboxSelectMultiple):
+                widget.attrs.setdefault("class", "list-unstyled")
+            elif isinstance(widget, forms.CheckboxInput):
                 widget.attrs.setdefault("class", "form-check-input")
             elif isinstance(widget, forms.SelectMultiple):
                 widget.attrs.setdefault("class", "browser-default custom-select form-control")
@@ -315,9 +341,7 @@ class CourseSectionForm(forms.ModelForm):
             "session": "Ciclo lectivo",
             "semester": "Cuatrimestre",
             "turn": "Turno",
-            "room": "Aula / Laboratorio",
             "teachers": "Docentes",
-            "students": "Alumnos",
             "start_date": "Fecha de inicio",
             "end_date": "Fecha de fin",
             "start_time": "Hora de inicio",
@@ -331,11 +355,10 @@ class CourseSectionForm(forms.ModelForm):
         }
         help_texts = {
             "program": "Carrera responsable de la comisión.",
-            "days_of_week": "Lista de días de cursada (ej: ['Lunes','Miércoles']).",
+            "days_of_week": "Seleccione los días en los que se cursa la comisión.",
             "attendance_required": "Porcentaje mínimo de asistencia para aprobar la comisión.",
             "promotion_attendance_required": "Porcentaje mínimo de asistencia para promocionar la comisión.",
             "code": "Código identificador de la comisión.",
-            "students": "Seleccione los alumnos inscriptos en esta comisión.",
             "session": "Seleccione el ciclo lectivo al que pertenece el cuatrimestre.",
         }
         for fname, label in labels.items():
@@ -348,6 +371,22 @@ class CourseSectionForm(forms.ModelForm):
         # Inicializa días de cursada desde el JSON a la lista esperada
         if self.instance and self.instance.pk and self.instance.days_of_week:
             self.initial["days_of_week"] = self.instance.days_of_week
+
+        # Orden de campos en el formulario
+        desired_order = [
+            "course",
+            "turn",
+            "code",
+            "session",
+            "semester",
+            "start_date",
+            "end_date",
+            "days_of_week",
+            "start_time",
+            "end_time",
+            "teachers",
+        ]
+        self.order_fields([f for f in desired_order if f in self.fields])
 
     def clean_days_of_week(self):
         data = self.cleaned_data.get("days_of_week") or []

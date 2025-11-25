@@ -323,6 +323,9 @@ class SectionSession(models.Model):
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
+    is_cancelled = models.BooleanField(default=False)
+    cancellation_reason = models.TextField(blank=True)
+    attendance_submitted = models.BooleanField(default=False)
     cancelled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -330,7 +333,6 @@ class SectionSession(models.Model):
         blank=True,
         related_name="cancelled_sessions",
     )
-    cancellation_reason = models.TextField(blank=True)
 
     class Meta:
         ordering = ("-date", "-start_time")
@@ -346,6 +348,7 @@ class AttendanceRecord(models.Model):
         PRESENT = "PRESENT", _("Presente")
         ABSENT = "ABSENT", _("Ausente")
         LATE = "LATE", _("Llego tarde")
+        JUSTIFIED = "JUSTIFIED", _("Justificada")
 
     section = models.ForeignKey(
         "course.CourseSection",
@@ -361,6 +364,13 @@ class AttendanceRecord(models.Model):
         null=True,
         blank=True,
     )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_records_recorded",
+    )
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -371,12 +381,17 @@ class AttendanceRecord(models.Model):
     )
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    justification_token = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True
+    )
 
     class Meta:
         unique_together = ("session", "student")
         ordering = ("-created_at",)
         verbose_name = _("Registro de asistencia")
         verbose_name_plural = _("Registros de asistencia")
+
+    STATUS_CHOICES = Status.choices
 
     def __str__(self):
         return f"{self.student} - {self.section} - {self.session.date}"
@@ -388,7 +403,7 @@ class AttendanceJustification(models.Model):
         APPROVED = "APPROVED", _("Aprobada")
         REJECTED = "REJECTED", _("Rechazada")
 
-    attendance = models.ForeignKey(
+    attendance_record = models.ForeignKey(
         AttendanceRecord,
         on_delete=models.CASCADE,
         related_name="justifications",
@@ -410,6 +425,14 @@ class AttendanceJustification(models.Model):
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     responded_at = models.DateTimeField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="justifications_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
@@ -462,6 +485,20 @@ class BulkUploadRequest(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="bulk_uploads",
+    )
+    section = models.ForeignKey(
+        "course.CourseSection",
+        on_delete=models.CASCADE,
+        related_name="bulk_uploads",
+        null=True,
+        blank=True,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bulk_uploads_uploaded",
     )
 
     class Meta:

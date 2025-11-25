@@ -77,17 +77,13 @@ class StaffAddForm(UserCreationForm):
     programs_as_coordinator = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
         required=False,
-        widget=forms.SelectMultiple(
-            attrs={"class": "browser-default custom-select form-control"}
-        ),
+        widget=forms.CheckboxSelectMultiple,
         label="Carreras como coordinador",
     )
     programs_as_teacher = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
         required=False,
-        widget=forms.SelectMultiple(
-            attrs={"class": "browser-default custom-select form-control"}
-        ),
+        widget=forms.CheckboxSelectMultiple,
         label="Carreras como docente",
     )
 
@@ -131,7 +127,7 @@ class StaffAddForm(UserCreationForm):
             "phone": "Teléfono",
             "dni": "DNI",
             "email": "Correo electrónico",
-            "role": "Rol asignado",
+            "role": "Rol",
             "is_role_active": "Activo",
         }
         help_texts = {
@@ -140,11 +136,20 @@ class StaffAddForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Username se autoasigna con el DNI, no se muestra
+        if "username" in self.fields:
+            self.fields["username"].required = False
+            self.fields["username"].widget = forms.HiddenInput()
+        # No pedimos contraseña en este flujo: la establecerá admin luego o se enviará un reset
+        self.fields.pop("password1", None)
+        self.fields.pop("password2", None)
         self.fields["programs_as_coordinator"].initial = (
             self.instance.programs_coordinated.all()
             if self.instance and self.instance.pk
             else Program.objects.none()
         )
+        if "programs_as_teacher" in self.fields and self.instance and self.instance.pk:
+            self.fields["programs_as_teacher"].initial = self.instance.programs_as_teacher.all()
         self._coordinator_programs = None
         if "role" in self.fields:
             self.fields["role"].choices = [
@@ -152,10 +157,27 @@ class StaffAddForm(UserCreationForm):
                 *User.Roles.staff_choices(),
             ]
 
+    def clean(self):
+        cleaned = super().clean()
+        dni = cleaned.get("dni")
+        if dni:
+            cleaned["username"] = dni
+        else:
+            self.add_error("dni", "El DNI es obligatorio para generar el usuario.")
+        return cleaned
+
     def save(self, commit=True):
         self._coordinator_programs = self.cleaned_data.get("programs_as_coordinator")
-        user = super().save(commit)
+        # Bypass UserCreationForm.save to avoid password1/2 keys
+        user = super(UserCreationForm, self).save(commit=False)
+        # Username y credenciales temporales basadas en DNI
+        dni = self.cleaned_data.get("dni") or user.username
+        if dni:
+            user.username = dni
+            user.set_password(dni)
+            user.must_change_password = True
         if commit:
+            user.save()
             self._save_coordinator_programs(user)
         return user
 
@@ -170,6 +192,12 @@ class StaffAddForm(UserCreationForm):
 
 
 class StaffUpdateForm(UserChangeForm):
+    programs_as_teacher = forms.ModelMultipleChoiceField(
+        queryset=Program.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Carreras como docente",
+    )
     programs_as_coordinator = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
         required=False,
@@ -187,6 +215,7 @@ class StaffUpdateForm(UserChangeForm):
             "gender",
             "email",
             "phone",
+            "role",
             "dni",
             "emergency_contact",
             "is_role_active",
@@ -205,7 +234,10 @@ class StaffUpdateForm(UserChangeForm):
             "first_name": forms.TextInput(attrs={"class": "form-control"}),
             "last_name": forms.TextInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
-            "address": forms.TextInput(attrs={"class": "form-control"}),
+            "role": forms.Select(
+                choices=User.Roles.staff_choices(),
+                attrs={"class": "browser-default custom-select form-control"},
+            ),
             "dni": forms.TextInput(attrs={"class": "form-control"}),
             "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
             "is_role_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -213,14 +245,45 @@ class StaffUpdateForm(UserChangeForm):
         help_texts = {
             "dni": "Ingrese el DNI sin puntos ni espacios.",
         }
+        labels = {
+            "first_name": "Nombre/s",
+            "last_name": "Apellido/s",
+            "gender": "Género",
+            "email": "Correo electrónico",
+            "phone": "Teléfono",
+            "role": "Rol",
+            "dni": "DNI",
+            "emergency_contact": "Contacto de emergencia",
+            "is_role_active": "Activo",
+            "programs_as_teacher": "Carreras como docente",
+            "programs_as_coordinator": "Carreras como coordinador",
+            "picture": "Foto",
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "programs_as_teacher" in self.fields:
+            self.fields["programs_as_teacher"].queryset = Program.objects.all().order_by("title")
+            if not self.is_bound and self.instance and self.instance.pk:
+                teacher_ids = list(
+                    self.instance.programs_as_teacher.values_list("pk", flat=True)
+                )
+                # Fallback: si no tenía asignaciones como docente, usar las que coordina
+                if not teacher_ids:
+                    teacher_ids = list(
+                        self.instance.programs_coordinated.values_list("pk", flat=True)
+                    )
+                self.fields["programs_as_teacher"].initial = teacher_ids
         self.fields["programs_as_coordinator"].initial = (
             self.instance.programs_coordinated.all()
             if self.instance and self.instance.pk
             else Program.objects.none()
         )
+        if "role" in self.fields:
+            self.fields["role"].choices = [
+                (User.Roles.ADMIN, User.Roles.ADMIN.label),
+                *User.Roles.staff_choices(),
+            ]
         self._coordinator_programs = None
 
     def save(self, commit=True):
@@ -338,11 +401,19 @@ class StudentAddForm(UserCreationForm):
             self.fields["locality"].choices = _load_locality_choices()
         if "nationality" in self.fields:
             self.fields["nationality"].choices = _load_nationality_choices()
+        if "username" in self.fields:
+            self.fields["username"].required = False
+            self.fields["username"].widget = forms.HiddenInput()
 
     @transaction.atomic
     def save(self, commit=True):
         user = super().save(commit=False)
         user.role = User.Roles.STUDENT
+        dni = self.cleaned_data.get("dni") or user.username
+        if dni:
+            user.username = dni
+            user.set_password(dni)
+            user.must_change_password = True
         if commit:
             user.save()
             programs = list(self.cleaned_data.get("programs") or [])
@@ -505,5 +576,3 @@ class EmailValidationOnForgotPassword(PasswordResetForm):
             msg = _("No existe un usuario con este correo electrónico.")
             self.add_error("email", msg)
         return email
-
-

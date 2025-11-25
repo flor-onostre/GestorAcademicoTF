@@ -8,12 +8,6 @@ from django.template.loader import get_template, render_to_string
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from django_filters.views import FilterView
-
-try:
-    from xhtml2pdf import pisa
-except ImportError:  # pragma: no cover
-    pisa = None
-
 from accounts.decorators import admin_required
 from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
@@ -25,9 +19,15 @@ from accounts.forms import (
     StudentUpdateForm,
 )
 from accounts.models import Student, User
+from accounts.utils import send_new_account_email
 from core.models import Semester, Session
 from course.models import Course
 from result.models import TakenCourse
+
+try:
+    from xhtml2pdf import pisa
+except ImportError:  # pragma: no cover
+    pisa = None
 
 
 # ########################################################
@@ -201,6 +201,8 @@ def staff_add_view(request):
             staff = form.save()
             full_name = staff.get_full_name
             email = staff.email
+            if email and staff.dni:
+                send_new_account_email(staff, staff.dni)
             messages.success(
                 request,
                 f"Se creó la cuenta de {full_name}. "
@@ -210,7 +212,7 @@ def staff_add_view(request):
         messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = StaffAddForm()
-    return render(request, "accounts/add_staff.html", {"form": form})
+    return render(request, "accounts/add_staff.html", {"form": form, "title": "Agregar docente"})
 
 
 @login_required
@@ -291,6 +293,8 @@ def student_add_view(request):
             student = form.save()
             full_name = student.get_full_name
             email = student.email
+            if email and student.dni:
+                send_new_account_email(student, student.dni)
             messages.success(
                 request,
                 f"Se creó la cuenta de {full_name}. "
@@ -398,9 +402,12 @@ def change_password(request):
         form = PasswordChangeForm(user=request.user, data=request.POST)
         if form.is_valid():
             user = form.save()
+            if getattr(user, "must_change_password", False):
+                user.must_change_password = False
+                user.save(update_fields=["must_change_password"])
             update_session_auth_hash(request, user)
             messages.success(request, "La contraseña se actualizó correctamente.")
-            return redirect("change_password")
+            return redirect("home")
         else:
             messages.error(request, "Corregí los errores indicados abajo.")
     else:
