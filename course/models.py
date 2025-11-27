@@ -453,12 +453,17 @@ class CourseSection(models.Model):
     )
     start_date = models.DateField()
     end_date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
     days_of_week = models.JSONField(
         default=list,
-        help_text=_("Lista de dÃ­as de cursada (ej: ['Lunes','MiÃ©rcoles'])."),
+        help_text=_("Lista de d?as de cursada (ej: ['Lunes','Mi?rcoles'])."),
         blank=True,
+    )
+    schedule_by_day = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_("Horarios por d?a, ej: [{'day': 'Lunes', 'start': '08:00', 'end': '10:00'}]."),
     )
     max_capacity = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)

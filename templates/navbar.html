@@ -35,7 +35,7 @@
 					{% endif %}
 
 					{% if request.user.is_superuser %}
-					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Panel de Administrador' %}</a>
+					{# Panel de admin removido: accesos están en el sidebar #}
 					{% endif %}
 
 					<a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>{% trans 'Perfil' %}</a>

@@ -1,4 +1,4 @@
-﻿from django import forms
+from django import forms
 from django.db import transaction
 from django.contrib.auth.forms import (
     PasswordResetForm,
@@ -50,9 +50,7 @@ def _load_locality_choices():
             name = None
         if name:
             names.append(str(name).strip())
-    cleaned = [n for n in names if n]
-    # No eliminamos duplicados para conservar localidades con mismo nombre en provincias distintas.
-    cleaned = sorted(cleaned, key=lambda x: x.lower())
+    cleaned = sorted([n for n in names if n], key=lambda x: x.lower())
     return base + [(n, n) for n in cleaned]
 
 
@@ -68,9 +66,13 @@ def _load_nationality_choices():
         data = json.loads(path.read_text(encoding="utf-8", errors="ignore"))
     except Exception:
         return base
-    names = [str(item).strip() for item in (data or []) if item]
-    names = sorted(names, key=lambda x: x.lower())
+    names = sorted([str(item).strip() for item in (data or []) if item], key=lambda x: x.lower())
     return base + [(n, n) for n in names]
+
+
+# -------------------------------
+# Staff Forms
+# -------------------------------
 
 
 class StaffAddForm(UserCreationForm):
@@ -130,26 +132,12 @@ class StaffAddForm(UserCreationForm):
             "role": "Rol",
             "is_role_active": "Activo",
         }
-        help_texts = {
-            "dni": "Ingrese el DNI sin puntos ni espacios.",
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Username se autoasigna con el DNI, no se muestra
-        if "username" in self.fields:
-            self.fields["username"].required = False
-            self.fields["username"].widget = forms.HiddenInput()
-        # No pedimos contraseña en este flujo: la establecerá admin luego o se enviará un reset
+        # No pedimos contraseña en este flujo: se genera y se envía
         self.fields.pop("password1", None)
         self.fields.pop("password2", None)
-        self.fields["programs_as_coordinator"].initial = (
-            self.instance.programs_coordinated.all()
-            if self.instance and self.instance.pk
-            else Program.objects.none()
-        )
-        if "programs_as_teacher" in self.fields and self.instance and self.instance.pk:
-            self.fields["programs_as_teacher"].initial = self.instance.programs_as_teacher.all()
         self._coordinator_programs = None
         if "role" in self.fields:
             self.fields["role"].choices = [
@@ -157,20 +145,9 @@ class StaffAddForm(UserCreationForm):
                 *User.Roles.staff_choices(),
             ]
 
-    def clean(self):
-        cleaned = super().clean()
-        dni = cleaned.get("dni")
-        if dni:
-            cleaned["username"] = dni
-        else:
-            self.add_error("dni", "El DNI es obligatorio para generar el usuario.")
-        return cleaned
-
     def save(self, commit=True):
         self._coordinator_programs = self.cleaned_data.get("programs_as_coordinator")
-        # Bypass UserCreationForm.save to avoid password1/2 keys
-        user = super(UserCreationForm, self).save(commit=False)
-        # Username y credenciales temporales basadas en DNI
+        user = super().save(commit=False)
         dni = self.cleaned_data.get("dni") or user.username
         if dni:
             user.username = dni
@@ -178,7 +155,8 @@ class StaffAddForm(UserCreationForm):
             user.must_change_password = True
         if commit:
             user.save()
-            self._save_coordinator_programs(user)
+            if self._coordinator_programs is not None:
+                self._save_coordinator_programs(user)
         return user
 
     def save_m2m(self):
@@ -201,9 +179,7 @@ class StaffUpdateForm(UserChangeForm):
     programs_as_coordinator = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
         required=False,
-        widget=forms.SelectMultiple(
-            attrs={"class": "browser-default custom-select form-control"}
-        ),
+        widget=forms.CheckboxSelectMultiple,
         label="Carreras como coordinador",
     )
 
@@ -242,9 +218,6 @@ class StaffUpdateForm(UserChangeForm):
             "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
             "is_role_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
-        help_texts = {
-            "dni": "Ingrese el DNI sin puntos ni espacios.",
-        }
         labels = {
             "first_name": "Nombre/s",
             "last_name": "Apellido/s",
@@ -263,12 +236,12 @@ class StaffUpdateForm(UserChangeForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "programs_as_teacher" in self.fields:
-            self.fields["programs_as_teacher"].queryset = Program.objects.all().order_by("title")
+            qs = Program.objects.all().order_by("title")
+            self.fields["programs_as_teacher"].queryset = qs
             if not self.is_bound and self.instance and self.instance.pk:
                 teacher_ids = list(
                     self.instance.programs_as_teacher.values_list("pk", flat=True)
                 )
-                # Fallback: si no tenía asignaciones como docente, usar las que coordina
                 if not teacher_ids:
                     teacher_ids = list(
                         self.instance.programs_coordinated.values_list("pk", flat=True)
@@ -303,19 +276,22 @@ class StaffUpdateForm(UserChangeForm):
         user.programs_coordinated.set(programs)
 
 
+# -------------------------------
+# Student Forms
+# -------------------------------
+
+
 class StudentAddForm(UserCreationForm):
     programs = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
-        widget=forms.SelectMultiple(
-            attrs={"class": "browser-default custom-select form-control", "size": 6}
-        ),
+        widget=forms.CheckboxSelectMultiple,
         label="Carreras",
         required=True,
     )
     locality = forms.ChoiceField(
         choices=BA_LOCALITIES,
         label="Localidad",
-        required=True,
+        required=False,
         widget=forms.Select(
             attrs={
                 "class": "browser-default custom-select form-control",
@@ -329,65 +305,60 @@ class StudentAddForm(UserCreationForm):
         widget=forms.Select(
             attrs={"class": "browser-default custom-select form-control"}
         ),
-        required=True,
+        required=False,
     )
 
     class Meta:
         model = User
         fields = [
-            "username",
             "first_name",
             "last_name",
-            "gender",
-            "address",
-            "locality",
-            "nationality",
-            "phone",
             "dni",
+            "gender",
             "email",
+            "phone",
             "emergency_contact",
+            "nationality",
+            "locality",
+            "address",
             "programs",
             "is_role_active",
         ]
         widgets = {
-            "username": forms.TextInput(attrs={"class": "form-control"}),
             "first_name": forms.TextInput(attrs={"class": "form-control"}),
             "last_name": forms.TextInput(attrs={"class": "form-control"}),
+            "dni": forms.TextInput(attrs={"class": "form-control"}),
             "gender": forms.Select(
                 choices=GENDERS,
                 attrs={"class": "browser-default custom-select form-control"},
             ),
-            "address": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.TextInput(attrs={"class": "form-control", "type": "email"}),
+            "phone": forms.TextInput(attrs={"class": "form-control"}),
+            "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
+            "nationality": forms.Select(
+                attrs={"class": "browser-default custom-select form-control"}
+            ),
             "locality": forms.Select(
                 attrs={
                     "class": "browser-default custom-select form-control",
                     "data-live-search": "true",
                 }
             ),
-            "nationality": forms.Select(
-                attrs={"class": "browser-default custom-select form-control"}
-            ),
-            "phone": forms.TextInput(attrs={"class": "form-control"}),
-            "dni": forms.TextInput(attrs={"class": "form-control"}),
-            "email": forms.TextInput(attrs={"class": "form-control", "type": "email"}),
-            "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
-            "programs": forms.SelectMultiple(
-                attrs={"class": "browser-default custom-select form-control", "size": 6}
-            ),
+            "address": forms.TextInput(attrs={"class": "form-control"}),
+            "programs": forms.CheckboxSelectMultiple(),
             "is_role_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
         labels = {
-            "username": "Usuario",
             "first_name": "Nombre/s",
             "last_name": "Apellido/s",
-            "gender": "Género",
-            "address": "Dirección",
-            "locality": "Localidad",
-            "nationality": "Nacionalidad",
-            "phone": "Teléfono",
             "dni": "DNI",
+            "gender": "Género",
             "email": "Correo electrónico",
+            "phone": "Teléfono",
             "emergency_contact": "Contacto de emergencia",
+            "nationality": "Nacionalidad",
+            "locality": "Localidad",
+            "address": "Dirección",
             "programs": "Carreras",
             "is_role_active": "Activo",
         }
@@ -397,13 +368,34 @@ class StudentAddForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields.pop("password1", None)
+        self.fields.pop("password2", None)
         if "locality" in self.fields:
             self.fields["locality"].choices = _load_locality_choices()
         if "nationality" in self.fields:
             self.fields["nationality"].choices = _load_nationality_choices()
-        if "username" in self.fields:
-            self.fields["username"].required = False
-            self.fields["username"].widget = forms.HiddenInput()
+        required_true = ["first_name", "last_name", "gender", "email", "dni", "programs"]
+        for name in required_true:
+            if name in self.fields:
+                self.fields[name].required = True
+        for name in ["address", "locality", "nationality", "emergency_contact", "is_role_active", "phone"]:
+            if name in self.fields:
+                self.fields[name].required = False
+        desired_order = [
+            "first_name",
+            "last_name",
+            "dni",
+            "gender",
+            "email",
+            "phone",
+            "emergency_contact",
+            "nationality",
+            "locality",
+            "address",
+            "programs",
+            "is_role_active",
+        ]
+        self.order_fields([f for f in desired_order if f in self.fields])
 
     @transaction.atomic
     def save(self, commit=True):
@@ -430,9 +422,7 @@ class StudentAddForm(UserCreationForm):
 class StudentUpdateForm(UserChangeForm):
     programs = forms.ModelMultipleChoiceField(
         queryset=Program.objects.all(),
-        widget=forms.SelectMultiple(
-            attrs={"class": "browser-default custom-select form-control", "size": 6}
-        ),
+        widget=forms.CheckboxSelectMultiple,
         label="Carreras",
         required=False,
     )
@@ -486,9 +476,21 @@ class StudentUpdateForm(UserChangeForm):
             "dni": forms.TextInput(attrs={"class": "form-control"}),
             "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
             "is_role_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "programs": forms.SelectMultiple(
-                attrs={"class": "browser-default custom-select form-control", "size": 6}
-            ),
+            "programs": forms.CheckboxSelectMultiple(),
+        }
+        labels = {
+            "first_name": "Nombre/s",
+            "last_name": "Apellido/s",
+            "gender": "Género",
+            "email": "Correo electrónico",
+            "phone": "Teléfono",
+            "address": "Dirección",
+            "locality": "Localidad",
+            "nationality": "Nacionalidad",
+            "dni": "DNI",
+            "emergency_contact": "Contacto de emergencia",
+            "is_role_active": "Activo",
+            "programs": "Carreras",
         }
         help_texts = {
             "dni": "Ingrese el DNI sin puntos ni espacios.",
@@ -564,15 +566,19 @@ class ProfileUpdateForm(UserChangeForm):
             "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
             "is_role_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
-        help_texts = {
-            "dni": "Ingrese el DNI sin puntos ni espacios.",
+        labels = {
+            "username": "Usuario",
+            "first_name": "Nombre/s",
+            "last_name": "Apellido/s",
+            "gender": "Género",
+            "address": "Dirección",
+            "phone": "Teléfono",
+            "dni": "DNI",
+            "email": "Correo electrónico",
+            "emergency_contact": "Contacto de emergencia",
+            "is_role_active": "Activo",
+            "picture": "Foto",
         }
 
-
-class EmailValidationOnForgotPassword(PasswordResetForm):
-    def clean_email(self):
-        email = self.cleaned_data["email"]
-        if not User.objects.filter(email__iexact=email, is_active=True).exists():
-            msg = _("No existe un usuario con este correo electrónico.")
-            self.add_error("email", msg)
-        return email
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

@@ -24,13 +24,14 @@
                 <div class="card-body">
                     {{ form.first_name|as_crispy_field }}
                     {{ form.last_name|as_crispy_field }}
+                    {{ form.dni|as_crispy_field }}
                     {{ form.gender|as_crispy_field }}
                     {{ form.email|as_crispy_field }}
-                    {{ form.address|as_crispy_field }}
-                    {{ form.locality|as_crispy_field }}
-                    {{ form.nationality|as_crispy_field }}
                     {{ form.phone|as_crispy_field }}
-                    {{ form.dni|as_crispy_field }}
+                    {{ form.emergency_contact|as_crispy_field }}
+                    {{ form.nationality|as_crispy_field }}
+                    {{ form.locality|as_crispy_field }}
+                    {{ form.address|as_crispy_field }}
                 </div>
             </div>
         </div>
@@ -39,14 +40,15 @@
                 <p class="form-title">{% trans 'Otros' %}</p>
                 <div class="card-body">
                     {{ form.programs|as_crispy_field }}
-                    {{ form.emergency_contact|as_crispy_field }}
                     {{ form.is_role_active|as_crispy_field }}
                 </div>
             </div>
         </div>
     </div>
-
-    <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
+    <div class="d-flex gap-2">
+        <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
+        <a class="btn btn-light" href="{% url 'student_list' %}">{% trans 'Cancelar' %}</a>
+    </div>
 </form>
 
 

@@ -28,7 +28,7 @@
                 <th>#</th>
                 <th> {% trans 'Cuatrimestre' %} </th>
                 <th> {% trans '¿Es el cuatrimestre actual?' %} </th>
-                <th> {% trans 'Sesión' %} </th>
+                <th> {% trans 'Ciclo lectivo' %} </th>
                 {% if request.user.is_superuser %}
                 <th> {% trans 'Acciones' %} </th>
                 {% endif %}
@@ -38,7 +38,7 @@
             {% for semester in semesters %}
             <tr>
                 <td> {{ forloop.counter }}.</td>
-                <td>{{ semester.get_semester_display }}</td>
+                <td><a href="{% url 'semester_detail' pk=semester.pk %}">{{ semester.get_semester_display }}</a></td>
                 <th>
                     {% if semester.is_current_semester == False %}
                     <i class="fas fa-times-circle fa-1-5x danger"></i>

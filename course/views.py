@@ -1,4 +1,5 @@
 import math
+from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -28,6 +29,12 @@ from core.models import (
     Semester,
 )
 from core.services.ai_ingestion import enqueue_ai_processing
+from core.notifications import (
+    notify_absence,
+    notify_teacher_missing_attendance,
+    notify_bedelia_teacher_missing,
+    notify_justification_result,
+)
 from course.filters import CourseAllocationFilter, ProgramFilter
 from course.forms import (
     CourseAddForm,
@@ -114,6 +121,62 @@ def _regularity_status(section, student):
     return percentage >= required, remaining, allowed_absences
 
 
+DAY_TO_WEEKDAY = {
+    "lunes": 0,
+    "martes": 1,
+    "miércoles": 2,
+    "miercoles": 2,
+    "jueves": 3,
+    "viernes": 4,
+    "sábado": 5,
+    "sabado": 5,
+    "domingo": 6,
+}
+
+
+def _generate_section_sessions(section):
+    """
+    Genera las clases de cursada según días/horarios definidos en la comisión.
+    Borra las existentes y recrea.
+    """
+    SectionSession.objects.filter(section=section).delete()
+    if not section.start_date or not section.end_date or not section.days_of_week:
+        return
+
+    schedule_map = {}
+    for item in getattr(section, "schedule_by_day", []) or []:
+        day = (item.get("day") or "").lower()
+        start = item.get("start")
+        end = item.get("end")
+        if day and start and end:
+            schedule_map[day] = (start, end)
+
+    current = section.start_date
+    while current <= section.end_date:
+        weekday = current.weekday()
+        for day_name in section.days_of_week:
+            day_num = DAY_TO_WEEKDAY.get(day_name.lower())
+            if day_num is None or day_num != weekday:
+                continue
+            schedule = schedule_map.get(day_name.lower())
+            if schedule:
+                start_str, end_str = schedule
+            else:
+                if not section.start_time or not section.end_time:
+                    continue
+                start_str = section.start_time.strftime("%H:%M")
+                end_str = section.end_time.strftime("%H:%M")
+            try:
+                start_time = timezone.datetime.strptime(start_str, "%H:%M").time()
+                end_time = timezone.datetime.strptime(end_str, "%H:%M").time()
+            except ValueError:
+                continue
+            SectionSession.objects.create(
+                section=section, date=current, start_time=start_time, end_time=end_time
+            )
+        current += timedelta(days=1)
+
+
 # ########################################################
 # Program Views
 # ########################################################
@@ -147,6 +210,34 @@ def university_add(request):
     )
 
 
+@login_required
+@admin_required
+def university_edit(request, pk):
+    uni = get_object_or_404(University, pk=pk)
+    if request.method == "POST":
+        form = UniversityForm(request.POST, instance=uni)
+        if form.is_valid():
+            uni = form.save()
+            messages.success(request, f"Se actualizó la universidad {uni.name}.")
+            return redirect("university_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = UniversityForm(instance=uni)
+    return render(
+        request, "course/university_form.html", {"title": "Editar universidad", "form": form}
+    )
+
+
+@login_required
+@admin_required
+def university_delete(request, pk):
+    uni = get_object_or_404(University, pk=pk)
+    name = uni.name
+    uni.delete()
+    messages.success(request, f"Se eliminó la universidad {name}.")
+    return redirect("university_list")
+
+
 @method_decorator([login_required, lecturer_required], name="dispatch")
 class ProgramFilterView(FilterView):
     filterset_class = ProgramFilter
@@ -178,11 +269,21 @@ def program_add(request):
 @login_required
 def program_detail(request, pk):
     program = get_object_or_404(Program, pk=pk)
-    courses = Course.objects.filter(program_id=pk).order_by("-year")
-    credits = courses.aggregate(total_credits=Sum("credit"))
-    paginator = Paginator(courses, 10)
+    courses_qs = (
+        Course.objects.filter(programs__id=pk)
+        .prefetch_related("programs")
+        .order_by("title")
+        .distinct()
+    )
+    credits = courses_qs.aggregate(total_credits=Sum("credit"))
+    paginator = Paginator(courses_qs, 10)
     page = request.GET.get("page")
     courses = paginator.get_page(page)
+    lecturers = (
+        User.objects.filter(role=User.Roles.TEACHER, programs_as_teacher__id=pk)
+        .distinct()
+        .order_by("first_name", "last_name")
+    )
     return render(
         request,
         "course/program_single.html",
@@ -191,6 +292,7 @@ def program_detail(request, pk):
             "program": program,
             "courses": courses,
             "credits": credits,
+            "lecturers": lecturers,
         },
     )
 
@@ -258,19 +360,18 @@ class CourseFilterView(ListView):
 @login_required
 def course_single(request, slug):
     course = get_object_or_404(Course, slug=slug)
-    files = Upload.objects.filter(course__slug=slug)
-    videos = UploadVideo.objects.filter(course__slug=slug)
-    lecturers = CourseAllocation.objects.filter(courses__pk=course.id)
+    sections = (
+        CourseSection.objects.filter(course=course)
+        .select_related("semester", "semester__session", "turn", "room")
+        .prefetch_related("teachers")
+    )
     return render(
         request,
         "course/course_single.html",
         {
             "title": course.title,
             "course": course,
-            "files": files,
-            "videos": videos,
-            "lecturers": lecturers,
-            "media_url": settings.MEDIA_URL,
+            "sections": sections,
         },
     )
 
@@ -359,6 +460,7 @@ def course_section_list(request):
     if not request.user.is_superuser:
         sections = sections.filter(program__in=programs)
     selected_program = request.GET.get("program") or None
+    selected_course = request.GET.get("course") or None
     if selected_program:
         try:
             selected_program_id = int(selected_program)
@@ -372,11 +474,15 @@ def course_section_list(request):
             else:
                 selected_program_id = None
         selected_program = selected_program_id
+    if selected_course:
+        sections = sections.filter(course__id=selected_course)
     context = {
         "title": "Comisiones",
         "sections": sections,
         "programs": programs.order_by("title"),
         "selected_program": selected_program,
+        "selected_course": selected_course,
+        "courses": Course.objects.order_by("title"),
     }
     return render(request, "course/section_list.html", context)
 
@@ -388,6 +494,7 @@ def course_section_create(request):
         form = CourseSectionForm(request.POST, user=request.user)
         if form.is_valid():
             section = form.save()
+            _generate_section_sessions(section)
             messages.success(
                 request,
                 f"Se creó la comisión de '{section.course}' para el turno {section.turn}.",
@@ -411,6 +518,7 @@ def course_section_update(request, pk):
         form = CourseSectionForm(request.POST, instance=section, user=request.user)
         if form.is_valid():
             section = form.save()
+            _generate_section_sessions(section)
             messages.success(
                 request,
                 f"Se actualizó la comisión de '{section.course}'.",
@@ -514,12 +622,14 @@ def session_attendance_view(request, session_id):
         if session.is_cancelled:
             messages.error(request, "No podés cargar asistencia en una clase suspendida.")
         else:
+            new_absences = []
             for student in students:
                 status = request.POST.get(f"student_{student.id}")
                 comment = request.POST.get(f"comment_{student.id}", "")
                 if not status:
                     continue
-                AttendanceRecord.objects.update_or_create(
+                previous = records_map.get(student.id)
+                record, _ = AttendanceRecord.objects.update_or_create(
                     session=session,
                     student=student,
                     defaults={
@@ -528,8 +638,18 @@ def session_attendance_view(request, session_id):
                         "recorded_by": request.user,
                     },
                 )
+                records_map[student.id] = record
+                if status == AttendanceRecord.Status.ABSENT and (
+                    not previous or previous.status != AttendanceRecord.Status.ABSENT
+                ):
+                    is_reg, remaining, allowed = _regularity_status(
+                        session.section, student
+                    )
+                    new_absences.append((student, remaining, allowed))
             session.attendance_submitted = True
             session.save(update_fields=["attendance_submitted"])
+            for student, remaining, allowed in new_absences:
+                notify_absence(student, session.section, remaining, allowed)
             messages.success(request, "Asistencia guardada correctamente.")
             return redirect("session_attendance", session_id=session.pk)
     student_rows = []
@@ -635,6 +755,7 @@ def review_justification(request, pk):
             if justification.status == AttendanceJustification.APPROVED:
                 justification.attendance_record.status = AttendanceRecord.JUSTIFIED
                 justification.attendance_record.save(update_fields=["status"])
+            notify_justification_result(justification)
             messages.success(request, "Justificación actualizada.")
             return redirect("section_sessions", pk=section.pk)
         messages.error(request, "Ocurrió un error al actualizar.")

@@ -22,7 +22,10 @@
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <button type="submit" class="btn btn-primary">{% trans 'Guardar' %}</button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">{% trans 'Guardar' %}</button>
+                        <a class="btn btn-light" href="{% url 'university_list' %}">{% trans 'Cancelar' %}</a>
+                    </div>
                 </form>
             </div>
         </div>

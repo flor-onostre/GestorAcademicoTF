@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'session_list' %}">{% trans 'Ciclos Lectivos' %}</a></li>
+        {% if semester.session %}
+        <li class="breadcrumb-item"><a href="{% url 'session_detail' pk=semester.session.pk %}">{{ semester.session }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active" aria-current="page">{{ semester }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>{% trans 'Cuatrimestre' %} {{ semester }}</h4>
+</div>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label for="program" class="form-label">{% trans "Carrera" %}</label>
+        <select name="program" id="program" class="browser-default custom-select form-control">
+            <option value="">{% trans "Todas" %}</option>
+            {% for program in programs %}
+                <option value="{{ program.id }}" {% if selected_program == program.id|stringformat:"s" %}selected{% endif %}>
+                    {{ program.title }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label for="course" class="form-label">{% trans "Materia" %}</label>
+        <select name="course" id="course" class="browser-default custom-select form-control">
+            <option value="">{% trans "Todas" %}</option>
+            {% for c in courses %}
+                <option value="{{ c.id }}" {% if selected_course == c.id|stringformat:"s" %}selected{% endif %}>
+                    {{ c.title }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-secondary w-100">{% trans "Filtrar" %}</button>
+    </div>
+</form>
+
+<div class="table-responsive table-shadow">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>{% trans "Comisión" %}</th>
+                <th>{% trans "Materia" %}</th>
+                <th>{% trans "Carrera" %}</th>
+                <th>{% trans "Turno" %}</th>
+                <th>{% trans "Fechas" %}</th>
+                <th>{% trans "Horarios" %}</th>
+                <th>{% trans "Días" %}</th>
+                <th>{% trans "Docentes" %}</th>
+                <th>{% trans "Estado" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for section in sections %}
+            <tr>
+                <td>{{ section.code }}</td>
+                <td>{{ section.course.title }}</td>
+                <td>{{ section.program.title }}</td>
+                <td>{{ section.turn.name }}</td>
+                <td>
+                    {{ section.start_date|date:"d/m/Y" }}<br>
+                    {{ section.end_date|date:"d/m/Y" }}
+                </td>
+                <td>
+                    {% if section.schedule_by_day %}
+                        {% for item in section.schedule_by_day %}
+                            {{ item.day }} {{ item.start }}-{{ item.end }}{% if not forloop.last %}<br>{% endif %}
+                        {% endfor %}
+                    {% elif section.start_time and section.end_time %}
+                        {{ section.start_time }} - {{ section.end_time }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if section.days_of_week %}
+                        {{ section.days_of_week|join:", " }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% for teacher in section.teachers.all %}
+                        <span class="badge bg-primary mb-1">{{ teacher.get_full_name }}</span><br>
+                    {% empty %}
+                        -
+                    {% endfor %}
+                </td>
+                <td>
+                    {% if section.is_active %}
+                        {% trans "Activa" %}
+                    {% else %}
+                        {% trans "Inactiva" %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted py-3">{% trans "No hay comisiones para este cuatrimestre." %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

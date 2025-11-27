@@ -132,13 +132,9 @@ class User(AbstractUser):
             "first_name",
             "last_name",
             "email",
-            "phone",
             "dni",
-            "address",
-            "locality",
-            "nationality",
             "gender",
-            "emergency_contact",
+            "programs",
         ],
     }
 

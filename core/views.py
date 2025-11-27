@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import models
 from django.contrib import messages
@@ -18,6 +20,7 @@ from .forms import (
 from .models import (
     ActivityLog,
     AttendanceRecord,
+    AttendanceReminderLog,
     BuildingFloor,
     BulkUploadRequest,
     EventInvitation,
@@ -27,6 +30,10 @@ from .models import (
     Session,
     Semester,
     PUBLISHER_ROLES,
+)
+from .notifications import (
+    notify_bedelia_teacher_missing,
+    notify_teacher_missing_attendance,
 )
 
 
@@ -141,10 +148,37 @@ def attendance_dashboard(request):
             attendance_submitted=False, is_cancelled=False, date__lte=timezone.now()
         )
         .select_related("section__course", "section__program", "section__room")
+        .prefetch_related("section__teachers")
         .order_by("date")
     )
+    reminder_cutoff = timezone.now() - timedelta(hours=12)
+    reminders_sent = []
+    grouped = {}
+    for sess in missing_sessions:
+        for teacher in sess.section.teachers.all():
+            grouped.setdefault((teacher.id, sess.section_id), []).append(sess)
+    for (teacher_id, section_id), sessions in grouped.items():
+        if len(sessions) < 2:
+            continue
+        teacher = User.objects.filter(pk=teacher_id).first()
+        section = sessions[0].section
+        if not teacher:
+            continue
+        already = AttendanceReminderLog.objects.filter(
+            teacher=teacher, section=section, sent_at__gte=reminder_cutoff
+        ).exists()
+        if already:
+            continue
+        notify_teacher_missing_attendance(teacher, section, sessions)
+        AttendanceReminderLog.objects.create(
+            teacher=teacher,
+            section=section,
+            message="Recordatorio por dos clases sin asistencia",
+        )
+        notify_bedelia_teacher_missing(teacher, section)
+        reminders_sent.append((teacher, section))
     absence_stats = (
-        AttendanceRecord.objects.filter(status=AttendanceRecord.ABSENT)
+        AttendanceRecord.objects.filter(status=AttendanceRecord.Status.ABSENT)
         .values("session__section__course__title")
         .annotate(total=models.Count("id"))
         .order_by("-total")[:10]
@@ -159,11 +193,10 @@ def attendance_dashboard(request):
         "missing_sessions": missing_sessions,
         "absence_stats": absence_stats,
         "room_usage": room_usage,
-        "uploads_pending": BulkUploadRequest.objects.filter(
-            status=BulkUploadRequest.Status.RECEIVED
-        )
+        "uploads_pending": BulkUploadRequest.objects.all()
         .select_related("section__course")
         .order_by("-created_at"),
+        "reminders_sent": reminders_sent,
     }
     return render(request, "core/attendance_dashboard.html", context)
 
@@ -269,6 +302,50 @@ def session_list_view(request):
     """Show list of all sessions"""
     sessions = Session.objects.all().order_by("-is_current_session", "-session")
     return render(request, "core/session_list.html", {"sessions": sessions})
+
+
+@login_required
+@admin_required
+def session_detail_view(request, pk):
+    session = get_object_or_404(Session, pk=pk)
+    semesters = Semester.objects.filter(session=session).order_by("semester")
+    return render(
+        request,
+        "core/session_detail.html",
+        {"session": session, "semesters": semesters, "title": f"Ciclo lectivo {session.session}"},
+    )
+
+
+@login_required
+@admin_required
+def semester_detail_view(request, pk):
+    semester = get_object_or_404(Semester, pk=pk)
+    programs = Program.objects.order_by("title")
+    sections = (
+        CourseSection.objects.filter(semester=semester)
+        .select_related("course", "program", "turn")
+        .prefetch_related("teachers")
+        .order_by("course__title")
+    )
+    selected_program = request.GET.get("program") or None
+    selected_course = request.GET.get("course") or None
+    if selected_program:
+        sections = sections.filter(program_id=selected_program)
+    if selected_course:
+        sections = sections.filter(course_id=selected_course)
+    return render(
+        request,
+        "core/semester_detail.html",
+        {
+            "semester": semester,
+            "sections": sections,
+            "programs": programs,
+            "courses": Course.objects.order_by("title"),
+            "selected_program": selected_program,
+            "selected_course": selected_course,
+            "title": f"Cuatrimestre {semester}",
+        },
+    )
 
 
 @login_required
