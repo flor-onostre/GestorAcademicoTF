@@ -50,7 +50,10 @@
             </div>
         </div>
     </div>
-    <input class="btn btn-primary mt-3" type="submit" value="{% trans 'Guardar' %}">
+    <div class="d-flex gap-2 mt-3">
+        <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
+        <a class="btn btn-light" href="{% url 'course_list' %}">{% trans 'Cancelar' %}</a>
+    </div>
 </form>
 
 {% endblock content %}

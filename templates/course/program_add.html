@@ -30,7 +30,10 @@
                         {{ form.min_promotion_attendance|as_crispy_field }}
                     </div>
                     {{ form.min_passing_attendance|as_crispy_field }}
-                    <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
+                    <div class="d-flex gap-2 mt-3">
+                        <input class="btn btn-primary" type="submit" value="{% trans 'Guardar' %}">
+                        <a class="btn btn-light" href="{% url 'programs' %}">{% trans 'Cancelar' %}</a>
+                    </div>
                 </form>
             </div>
         </div>

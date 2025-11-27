@@ -21,30 +21,41 @@
             {% endfor %}
         </select>
     </div>
+    <div class="col-md-4">
+        <label for="course" class="form-label">{% trans "Materia" %}</label>
+        <select name="course" id="course" class="browser-default custom-select form-control">
+            <option value="">{% trans "Todas" %}</option>
+            {% for c in courses %}
+                <option value="{{ c.id }}" {% if selected_course == c.id|stringformat:"s" %}selected{% endif %}>
+                    {{ c.title }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
     <div class="col-md-2 d-flex align-items-end">
         <button type="submit" class="btn btn-secondary w-100">{% trans "Filtrar" %}</button>
     </div>
 </form>
 
 <div class="card">
-    <div class="card-body table-responsive">
+    <div class="card-body table-responsive" style="overflow: visible;">
         <table class="table table-striped align-middle">
             <thead>
                 <tr>
-                    <th>{% trans "Código" %}</th>
+                    <th>{% trans "Comisión" %}</th>
                     <th>{% trans "Materia" %}</th>
                     <th>{% trans "Carrera" %}</th>
                     <th>{% trans "Cuatrimestre" %}</th>
                     <th>{% trans "Turno" %}</th>
                     <th>{% trans "Aula / Laboratorio" %}</th>
                     <th>{% trans "Fechas" %}</th>
+                    <th>{% trans "Horarios" %}</th>
                     <th>{% trans "Días" %}</th>
                     <th>{% trans "Docentes" %}</th>
                     <th>{% trans "Alumnos" %}</th>
-                    <th>{% trans "Cupo" %}</th>
-                    <th>{% trans "Asistencia mínima" %}</th>
+                    <th>{% trans "Asistencia mínima (carrera)" %}</th>
                     <th>{% trans "Estado" %}</th>
-                    <th></th>
+                    <th class="text-end">{% trans "Acciones" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -67,6 +78,17 @@
                             {{ section.end_date|date:"d/m/Y" }}
                         </td>
                         <td>
+                            {% if section.schedule_by_day %}
+                                {% for item in section.schedule_by_day %}
+                                    {{ item.day }} {{ item.start }}-{{ item.end }}{% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% elif section.start_time and section.end_time %}
+                                {{ section.start_time }} - {{ section.end_time }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if section.days_of_week %}
                                 {{ section.days_of_week|join:", " }}
                             {% else %}
@@ -87,18 +109,30 @@
                                 -
                             {% endfor %}
                         </td>
-                        <td>{{ section.max_capacity }}</td>
                         <td>
-                            {% if section.attendance_threshold %}
-                                {{ section.attendance_threshold }}%
+                            {% if section.program.min_passing_attendance %}
+                                {{ section.program.min_passing_attendance }}%
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td>{{ section.get_status_display }}</td>
+                        <td>
+                            {% if section.is_active %}
+                                {% trans "Activa" %}
+                            {% else %}
+                                {% trans "Inactiva" %}
+                            {% endif %}
+                        </td>
                         <td class="text-end">
-                            <a href="{% url 'course_section_update' section.pk %}" class="btn btn-sm btn-light">{% trans "Editar" %}</a>
-                            <a href="{% url 'course_section_delete' section.pk %}" class="btn btn-sm btn-danger">{% trans "Eliminar" %}</a>
+                            <div class="dropdown">
+                                <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa fa-ellipsis-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'course_section_update' section.pk %}"><i class="fas fa-edit me-2"></i>{% trans "Editar" %}</a></li>
+                                    <li><a class="dropdown-item text-danger" href="{% url 'course_section_delete' section.pk %}"><i class="fas fa-trash-alt me-2"></i>{% trans "Eliminar" %}</a></li>
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                 {% empty %}

@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
 {% block title %}{{ title }} | {% trans 'Gestor Académico' %}{% endblock title %}
-{% load static %}
 
 {% block content %}
 
@@ -36,19 +35,6 @@
                 <i class="fas fa-pencil-alt"></i> {% trans 'Editar materia' %}
             </a>
             {% endif %}
-            {% if request.user.is_superuser or request.user.is_lecturer %}
-            <a class="btn btn-sm btn-primary" href="{% url 'upload_file_view' course.slug %}"><i class="fas fa-plus"></i>
-                {% trans 'Subir nuevo archivo' %}
-            </a>
-            <a class="btn btn-sm btn-primary" href="{% url 'upload_video' course.slug %}"><i class="fas fa-plus"></i>
-                {% trans 'Subir nuevo video' %}
-            </a>
-            {% endif %}
-        </div>
-        <div class="ms-auto">
-            <a class="btn btn-sm btn-warning" href="{% url 'quiz_index' course.slug %}"><i class="fas fa-list"></i>
-                {% trans 'Rendir evaluación' %}
-            </a>
         </div>
     </div>
 </div>
@@ -58,195 +44,86 @@
 
 {% include 'snippets/messages.html' %}
 
-<div class="container">
-
-    <div class="row mb-5">
-        <div class="col-md-12 p-0">
-            <p class="form-title m-0">{% trans 'Videos de la materia' %}</p>
-            <div class="table-responsive">
-                <table class="table table-shadow table-light table-striped m-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>{% trans 'Título del video' %}</th>
-                            <th>{% trans 'Fecha de carga' %}</th>
-                            <th>{% trans 'Comenzar' %}</th>
-                            {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <th>{% trans 'Acciones' %}</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for video in videos %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>
-                                <a href="{{ video.get_absolute_url }}" title="{{ video }}" class="d-flex align-items-center">
-                                    <i class="fas fa-video me-1"></i> {{ video.title|title }}
-                                </a>
-                            </td>
-                            <td>{{ video.timestamp|date }}</td>
-                            <th>
-                                <div>
-                                    <a class="download-btn" href="{{ video.get_absolute_url }}"
-                                        title="{% trans 'Reproducir en el navegador' %}">
-                                        <i class="fas fa-play me-1"></i>{% trans 'Reproducir ahora' %}</a>
-                                </div>
-                            </th>
-
-                            {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <td>
-                                <div class="update-delete">
-                                    <a href="{% url 'upload_video_edit' slug=course.slug video_slug=video.slug %}"
-                                        class="update" title="{% trans 'Edit' %}">
-                                        <i class="fas fa-pencil-alt"></i>
-                                    </a>
-                                    <a href="{% url 'upload_video_delete' slug=course.slug video_slug=video.slug %}"
-                                        class="delete" title="{% trans 'Delete' %}">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
-                                </div>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td></td>
-                            <td></td>
-                            <td>
-                                <span class="text-danger">
-                                    {% trans 'No hay videos cargados.' %}
-                                    {% if request.user.is_superuser or request.user.is_lecturer %}
-                                    <a href="{% url 'upload_video' course.slug %}" class="text-primary">
-                                        <i class="primary" style="font-size: 22px;">
-                                            {% trans 'Subir ahora.' %}
-                                        </i>
-                                        {% endif %}
-                                    </a>
-                                </span>
-                            </td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12 p-0">
-            <p class="form-title m-0">{% trans 'Material de la materia' %}</p>
-            <div class="table-responsive">
-                <table class="table table-shadow table-light table-striped m-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>{% trans 'Nombre del archivo' %}</th>
-                            <th>{% trans 'Fecha de carga' %}</th>
-                            <th>{% trans 'Fecha de actualización' %}</th>
-                            <th>{% trans 'Descargas' %}</th>
-                            {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <th>{% trans 'Acciones' %}</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for file in files %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td><a href="{{ file.file.url }}" title="{{ file }}" class="d-flex align-items-center">
-                                    <i class="fas fa-file-{{ file.get_extension_short }} me-1"></i>
-                                    {{ file.title|title }}
-                                </a>
-                            </td>
-                            <td>{{ file.upload_time|date }}</td>
-                            <td>{{ file.updated_date|date }}</td>
-                            <th>
-                                <div>
-                                    <a class="download-btn" href="{{ file.file.url }}" title="{% trans 'Descargar a tu dispositivo' %}">
-                                        <i class="fas fa-download me-1"></i>{% trans 'Descargar' %}</a>
-                                </div>
-                            </th>
-
-                            {% if request.user.is_superuser or request.user.is_lecturer %}
-                            <td>
-                                <div class="update-delete">
-                                    <a href="{% url 'upload_file_edit' slug=course.slug file_id=file.pk %}"
-                                        class="update" title="{% trans 'Edit' %}">
-                                        <i class="fas fa-pencil-alt"></i>
-                                    </a>
-                                    <a href="{% url 'upload_file_delete' slug=course.slug file_id=file.pk %}"
-                                        class="delete" title="{% trans 'Delete' %}">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
-                                </div>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td></td>
-                            <td></td>
-                            <td>
-                                <span class="text-danger">
-                                    {% trans 'No hay archivos cargados.' %}
-                                    {% if request.user.is_superuser or request.user.is_lecturer %}
-                                    <a href="{% url 'upload_file_view' course.slug %}" class="text-primary">
-                                        <i class="primary" style="font-size: 22px;">
-                                            {% trans 'Subir ahora.' %}
-                                        </i>
-                                        {% endif %}
-                                    </a>
-                                </span>
-                            </td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-</div>
-
 <div class="site-section mb-5 mt-4">
-    <div class="title-1">{% trans 'Docente(s)' %}</div>
+    <div class="title-1">{% trans 'Comisiones de la materia' %}</div>
     <br>
-    <br>
-    <div class="container-fluid">
-        <div class="row">
-            {% for lecturer in lecturers %}
-            <div class="col-lg-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        {% if lecturer.lecturer.picture %}
-                        <img class="avatar avatar-lg" src="{{ lecturer.lecturer.picture.url }}" alt="">
+    <div class="table-responsive table-shadow">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>{% trans 'Código' %}</th>
+                    <th>{% trans 'Ciclo lectivo' %}</th>
+                    <th>{% trans 'Cuatrimestre' %}</th>
+                    <th>{% trans 'Turno' %}</th>
+                    <th>{% trans 'Días de cursada' %}</th>
+                    <th>{% trans 'Horario' %}</th>
+                    <th>{% trans 'Fecha inicio' %}</th>
+                    <th>{% trans 'Fecha fin' %}</th>
+                    <th>{% trans 'Docentes' %}</th>
+                    <th>{% trans 'Estado' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for section in sections %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ section.code }}</td>
+                    <td>{{ section.semester.session }}</td>
+                    <td>{{ section.semester }}</td>
+                    <td>{{ section.turn.name }}</td>
+                    <td>
+                        {% if section.days_of_week %}
+                            {{ section.days_of_week|join:", " }}
+                        {% else %}
+                            -
                         {% endif %}
-                        <h5 class="fw-bold mb-0">{{ lecturer|title }}</h5>
-                        <p class="mb-0">{{ lecturer.lecturer.email }}</p>
-                        <p class="text-muted small">Donec sed odio dui. Etiam porta sem malesuada magna mollis euismod.</p>
-                        <p>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-twitter"></i></a>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-facebook-f"></i></a>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-linkedin-in"></i></a>
-                        </p>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                    <td>
+                        {% if section.schedule_by_day %}
+                            {% for item in section.schedule_by_day %}
+                                {{ item.day }} {{ item.start }}-{{ item.end }}{% if not forloop.last %}<br>{% endif %}
+                            {% endfor %}
+                        {% elif section.start_time and section.end_time %}
+                            {{ section.start_time }} - {{ section.end_time }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ section.start_date }}</td>
+                    <td>{{ section.end_date }}</td>
+                    <td>
+                        {% for t in section.teachers.all %}
+                            {{ t.first_name }} {{ t.last_name }}{% if not forloop.last %}, {% endif %}
+                        {% empty %}
+                            -
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if section.is_active %}
+                            <span class="badge bg-success">{% trans 'Activa' %}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{% trans 'Inactiva' %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-muted text-center py-3">{% trans 'No hay comisiones para esta materia.' %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-4">
+        <h6 class="fw-bold">{% trans 'Carreras relacionadas' %}</h6>
+        <p class="mb-0">
+            {% for p in course.programs.all %}
+                {{ p.title }}{% if not forloop.last %}, {% endif %}
             {% empty %}
-            <h6 class="text-muted mt-3">{% trans 'No hay docentes asignados a esta materia' %}</h6>
+                {% trans "Sin carrera" %}
             {% endfor %}
-
-        </div>
+        </p>
     </div>
 </div>
 

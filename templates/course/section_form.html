@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block content %}
 <h2>{{ title }}</h2>
@@ -13,55 +14,99 @@
                 </div>
             {% endif %}
             <div class="row g-3">
-                {% for field in form %}
-                    {% with widget=field.field.widget %}
-                        {% with widget_type=widget.input_type|default:"" %}
-                            {% with is_multi=widget.allow_multiple_selected|default:False %}
-                                {% if field.name == "end_date" %}
-                                    {# handled with start_date below #}
-                                {% elif field.name == "start_date" %}
-                                    <div class="col-md-6">
-                                        <div class="row g-3">
-                                            <div class="col-sm-6">
-                                                <label class="form-label d-block">{{ form.start_date.label }}{% if form.start_date.field.required %}*{% endif %}</label>
-                                                {{ form.start_date }}
-                                                {% if form.start_date.help_text %}
-                                                    <small class="form-text text-muted">{{ form.start_date.help_text }}</small>
-                                                {% endif %}
-                                                {% for error in form.start_date.errors %}
-                                                    <div class="text-danger small">{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                            <div class="col-sm-6">
-                                                <label class="form-label d-block">{{ form.end_date.label }}{% if form.end_date.field.required %}*{% endif %}</label>
-                                                {{ form.end_date }}
-                                                {% if form.end_date.help_text %}
-                                                    <small class="form-text text-muted">{{ form.end_date.help_text }}</small>
-                                                {% endif %}
-                                                {% for error in form.end_date.errors %}
-                                                    <div class="text-danger small">{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    <div class="{% if widget_type == 'checkbox' and is_multi %}col-12{% else %}col-md-6{% endif %}">
-                                        <label class="form-label d-block">{{ field.label }}{% if field.field.required %}*{% endif %}</label>
-                                        <div class="{% if widget_type == 'checkbox' and is_multi %}form-check{% endif %}">
-                                            {{ field }}
-                                        </div>
-                                        {% if field.help_text %}
-                                            <small class="form-text text-muted">{{ field.help_text }}</small>
-                                        {% endif %}
-                                        {% for error in field.errors %}
-                                            <div class="text-danger small">{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            {% endwith %}
-                        {% endwith %}
-                    {% endwith %}
-                {% endfor %}
+                {# Campos básicos #}
+                <div class="col-md-6">
+                    <label class="form-label d-block">{{ form.course.label }}{% if form.course.field.required %}*{% endif %}</label>
+                    {{ form.course }}
+                    {% for error in form.course.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.turn.label }}{% if form.turn.field.required %}*{% endif %}</label>
+                    {{ form.turn }}
+                    {% for error in form.turn.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.code.label }}{% if form.code.field.required %}*{% endif %}</label>
+                    {{ form.code }}
+                    {% for error in form.code.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.session.label }}{% if form.session.field.required %}*{% endif %}</label>
+                    {{ form.session }}
+                    {% for error in form.session.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.semester.label }}{% if form.semester.field.required %}*{% endif %}</label>
+                    {{ form.semester }}
+                    {% for error in form.semester.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.start_date.label }}{% if form.start_date.field.required %}*{% endif %}</label>
+                    {{ form.start_date }}
+                    {% for error in form.start_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label d-block">{{ form.end_date.label }}{% if form.end_date.field.required %}*{% endif %}</label>
+                    {{ form.end_date }}
+                    {% for error in form.end_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label d-block">{{ form.days_of_week.label }}{% if form.days_of_week.field.required %}*{% endif %}</label>
+                    {{ form.days_of_week }}
+                    {% if form.days_of_week.help_text %}<small class="form-text text-muted">{{ form.days_of_week.help_text }}</small>{% endif %}
+                    {% for error in form.days_of_week.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label d-block">{{ form.start_time.label }}</label>
+                    {{ form.start_time }}
+                    {% for error in form.start_time.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label d-block">{{ form.end_time.label }}</label>
+                    {{ form.end_time }}
+                    {% for error in form.end_time.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.enable_custom_schedule }}
+                        <label class="form-check-label" for="{{ form.enable_custom_schedule.id_for_label }}">
+                            {{ form.enable_custom_schedule.label }}
+                        </label>
+                    </div>
+                    {% for error in form.enable_custom_schedule.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12" id="custom-schedule-container" style="display:none;">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="mb-2 fw-bold">{% trans "Horarios por día" %}</p>
+                            <div id="per-day-rows"></div>
+                            <small class="text-muted">{% trans "Complete un horario por cada día seleccionado." %}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label d-block">{{ form.teachers.label }}</label>
+                    {{ form.teachers }}
+                    {% for error in form.teachers.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            {{ form.is_active.label }}
+                        </label>
+                    </div>
+                    {% for error in form.is_active.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+
+                {{ form.schedule_by_day }}
             </div>
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">Guardar</button>
@@ -70,4 +115,98 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function() {
+        const enableCustom = document.getElementById("id_enable_custom_schedule");
+        const daysCheckboxes = document.querySelectorAll("#id_days_of_week input[type=checkbox]");
+        const container = document.getElementById("custom-schedule-container");
+        const rowsContainer = document.getElementById("per-day-rows");
+        const hiddenField = document.getElementById("id_schedule_by_day");
+        const startGeneral = document.getElementById("id_start_time");
+        const endGeneral = document.getElementById("id_end_time");
+
+        function renderRows() {
+            rowsContainer.innerHTML = "";
+            const selectedDays = Array.from(daysCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.parentElement.textContent.trim());
+            selectedDays.forEach(day => {
+                const row = document.createElement("div");
+                row.className = "row g-2 align-items-end mb-2";
+                row.innerHTML = `
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" value="${day}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="time" class="form-control start-per-day" data-day="${day}">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="time" class="form-control end-per-day" data-day="${day}">
+                    </div>
+                `;
+                rowsContainer.appendChild(row);
+            });
+        }
+
+        function syncVisibility() {
+            const enabled = enableCustom.checked;
+            container.style.display = enabled ? "" : "none";
+            startGeneral.disabled = enabled;
+            endGeneral.disabled = enabled;
+            if (enabled) {
+                renderRows();
+            } else {
+                hiddenField.value = "[]";
+            }
+        }
+
+        function syncHidden() {
+            if (!enableCustom.checked) return;
+            const rows = rowsContainer.querySelectorAll(".row");
+            const data = [];
+            rows.forEach(row => {
+                const day = row.querySelector("input[readonly]").value;
+                const start = row.querySelector(".start-per-day").value;
+                const end = row.querySelector(".end-per-day").value;
+                if (day && start && end) {
+                    data.push({day, start, end});
+                }
+            });
+            hiddenField.value = JSON.stringify(data);
+        }
+
+        enableCustom.addEventListener("change", () => {
+            syncVisibility();
+            syncHidden();
+        });
+        daysCheckboxes.forEach(cb => cb.addEventListener("change", () => {
+            if (enableCustom.checked) {
+                renderRows();
+                syncHidden();
+            }
+        }));
+        rowsContainer.addEventListener("input", syncHidden);
+
+        // Inicialización
+        syncVisibility();
+        // Pre-cargar horarios existentes
+        try {
+            const existing = JSON.parse(hiddenField.value || "[]");
+            if (existing.length) {
+                enableCustom.checked = true;
+                syncVisibility();
+                setTimeout(() => {
+                    existing.forEach(item => {
+                        const startInput = rowsContainer.querySelector(`.start-per-day[data-day=\"${item.day}\"]`);
+                        const endInput = rowsContainer.querySelector(`.end-per-day[data-day=\"${item.day}\"]`);
+                        if (startInput) startInput.value = item.start;
+                        if (endInput) endInput.value = item.end;
+                    });
+                    syncHidden();
+                }, 0);
+            }
+        } catch (e) {}
+    })();
+</script>
 {% endblock %}

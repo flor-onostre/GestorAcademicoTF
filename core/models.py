@@ -471,6 +471,12 @@ class AttendanceReminderLog(models.Model):
 
 
 class BulkUploadRequest(models.Model):
+    class Status(models.TextChoices):
+        RECEIVED = "RECEIVED", _("Recibido")
+        PROCESSING = "PROCESSING", _("Procesando")
+        COMPLETED = "COMPLETED", _("Completado")
+        FAILED = "FAILED", _("Fallido")
+
     class Kind(models.TextChoices):
         ATTENDANCE = "ATTENDANCE", _("Asistencia")
         GRADES = "GRADES", _("Notas")
@@ -492,6 +498,12 @@ class BulkUploadRequest(models.Model):
         related_name="bulk_uploads",
         null=True,
         blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RECEIVED,
+        help_text=_("Estado de procesamiento de la carga."),
     )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

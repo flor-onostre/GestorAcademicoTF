@@ -23,7 +23,6 @@
 </div>
 {% endif %}
 
-
 {% if program %}
 <div class="title-1">{{ program.title }}</div>
 {% if program.summary %}
@@ -32,82 +31,68 @@
 {% endif %}
 
 {% include 'snippets/messages.html' %}
-{% include 'snippets/filter_form.html' %}
 
-<div class="table-responsive p-0 px-2 mt-5">
-    <div class="table-shadow">
-        <table class="table table-light table-striped">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th> {% trans 'Nombre de la materia' %} </th>
-                    <th> {% trans 'Código' %} </th>
-                    <th> {% trans 'Créditos' %} </th>
-                    <th> {% trans 'Nivel' %} </th>
-                    <th> {% trans 'Año' %} </th>
-                    <th> {% trans 'Cuatrimestre' %} </th>
-                    <th> {% trans 'Es cuatrimestre actual' %} </th>
-                    {% if request.user.is_superuser %}
-                    <th>{% trans 'Acciones' %}</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for course in courses %}
-                <tr>
-                    <td>{{ forloop.counter }}.</td>
-                    <td><a href="{{ course.get_absolute_url }}">
-                            {{ course.title }}</a></td>
-                    <td>{{ course.code }}</td>
-                    <td>{{ course.credit }}</td>
-                    <td>{{ course.level }}</td>
-                    <td>{{ course.year }}</td>
-                    <td>{{ course.semester }}</td>
-                    <th>
-                        {% if course.is_current_semester == False %}
-                        <i class="fas fa-times-circle fa-1-5x danger"></i>
-                        {% elif course.is_current_semester == True %}
-                        <i class="fas fa-check-circle fa-1-5x"></i>
-                        {% endif %}
-                    </th>
-                    {% if request.user.is_superuser %}
-                    <td>
-                        <div class="dropstart">
-                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" 
-                            data-bs-boundary="window" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-ellipsis-v m-0"></i>
-                            </button>
-                            <div class="dropdown-menu">
+<div class="table-responsive p-0 px-2 mt-5 table-shadow" style="overflow: visible;">
+    <table class="table table-light table-striped align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th> {% trans 'Nombre de la materia' %} </th>
+                <th> {% trans 'Código' %} </th>
+                <th> {% trans 'Tipo' %} </th>
+                {% if request.user.is_superuser %}
+                <th class="text-end">{% trans 'Acciones' %}</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in courses %}
+            <tr>
+                <td>{{ forloop.counter }}.</td>
+                <td><a href="{{ course.get_absolute_url }}">
+                        {{ course.title }}</a></td>
+                <td>{{ course.code }}</td>
+                <td>{{ course.get_evaluation_mode_display }}</td>
+                {% if request.user.is_superuser %}
+                <td class="text-end">
+                    <div class="dropdown">
+                        <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v m-0"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
                                 <a class="dropdown-item" href="{% url 'edit_course' slug=course.slug %}">
-                                    <i class="unstyled me-2 fas fa-pencil-alt"></i> {% trans 'Edit' %}
+                                    <i class="unstyled me-2 fas fa-pencil-alt"></i> {% trans 'Editar' %}
                                 </a>
-                                <a class="dropdown-item" href="{% url 'delete_course' slug=course.slug %}">
-                                    <i class="unstyled me-2 fas fa-trash-alt"></i> {% trans 'Delete' %}
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'delete_course' slug=course.slug %}">
+                                    <i class="unstyled me-2 fas fa-trash-alt"></i> {% trans 'Eliminar' %}
                                 </a>
-                            </div>
-                        </div>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                  <td colspan="9">
-                  <span class="text-danger">
-                    {% trans 'No hay materias para esta carrera.' %}
-                    {% if request.user.is_superuser %}
-                    <a href="{% url 'course_add' pk=program.pk %}" class="text-primary">
-                    <i class="primary" style="font-size: 22px;">
-                        {% trans 'Agregar una ahora.' %}
-                    </i>
-                    {% endif %}
-                    </a>
-                  </span>
+                            </li>
+                        </ul>
+                    </div>
                 </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">
+              <span class="text-danger">
+                {% trans 'No hay materias para esta carrera.' %}
+                {% if request.user.is_superuser %}
+                <a href="{% url 'course_add' pk=program.pk %}" class="text-primary">
+                <i class="primary" style="font-size: 22px;">
+                    {% trans 'Agregar una ahora.' %}
+                </i>
+                {% endif %}
+                </a>
+              </span>
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 {% if courses.paginator.page_range|length > 1 %}
@@ -125,5 +110,25 @@
     </div>
 </div>
 {% endif %}
+
+<div class="mt-5">
+    <h5 class="fw-bold">{% trans 'Docentes de la carrera' %}</h5>
+    <div class="row">
+        {% for lecturer in lecturers %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-1">{{ lecturer.first_name }} {{ lecturer.last_name }}</h6>
+                    <p class="mb-0 text-muted">{{ lecturer.email }}</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted mb-0">{% trans 'No hay docentes asignados a esta carrera.' %}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
 
 {% endblock content %}

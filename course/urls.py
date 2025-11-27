@@ -6,6 +6,8 @@ urlpatterns = [
     # Program urls
     path("universidades/", views.university_list, name="university_list"),
     path("universidades/agregar/", views.university_add, name="university_add"),
+    path("universidades/<int:pk>/editar/", views.university_edit, name="university_edit"),
+    path("universidades/<int:pk>/eliminar/", views.university_delete, name="university_delete"),
     path("", views.ProgramFilterView.as_view(), name="programs"),
     path("<int:pk>/detail/", views.program_detail, name="program_detail"),
     path("add/", views.program_add, name="add_program"),
@@ -27,25 +29,6 @@ urlpatterns = [
     path("materias/", views.CourseFilterView.as_view(), name="course_list"),
     path("attendance/justify/<uuid:token>/", views.submit_justification, name="submit_justification"),
     path("attendance/justification/<int:pk>/review/", views.review_justification, name="review_justification"),
-    # CourseAllocation urls
-    path(
-        "course/assign/",
-        views.CourseAllocationFormView.as_view(),
-        name="course_allocation",
-    ),
-    path(
-        "course/allocated/",
-        views.CourseAllocationFilterView.as_view(),
-        name="course_allocation_view",
-    ),
-    path(
-        "allocated_course/<int:pk>/edit/",
-        views.edit_allocated_course,
-        name="edit_allocated_course",
-    ),
-    path(
-        "course/<int:pk>/deallocate/", views.deallocate_course, name="course_deallocate"
-    ),
     # File uploads urls
     path(
         "course/<slug>/documentations/upload/",

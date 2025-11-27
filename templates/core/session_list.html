@@ -37,7 +37,7 @@
             {% for session in sessions %}
             <tr>
                 <td>{{ forloop.counter }}.</td>
-                <td>{{ session.session }}</td>
+                <td><a href="{% url 'session_detail' pk=session.pk %}">{{ session.session }}</a></td>
                 <th>
                     {% if session.is_current_session == True %}
                     <i class="fas fa-check-circle fa-1-5x"></i>

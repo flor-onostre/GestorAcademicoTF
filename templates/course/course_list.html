@@ -36,7 +36,7 @@
     </div>
 </div>
 
-<div class="table-responsive table-shadow">
+<div class="table-responsive table-shadow" style="overflow: visible;">
     <table class="table table-striped align-middle">
         <thead>
             <tr>
@@ -45,6 +45,7 @@
                 <th>{% trans 'Código' %}</th>
                     <th>{% trans 'Carrera' %}</th>
                 <th>{% trans 'Tipo' %}</th>
+                <th class="text-end">{% trans 'Acción' %}</th>
             </tr>
         </thead>
         <tbody>
@@ -63,10 +64,21 @@
                         {% endif %}
                     </td>
                     <td>{{ course.get_evaluation_mode_display }}</td>
+                    <td class="text-end">
+                        <div class="dropdown">
+                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-ellipsis-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'edit_course' slug=course.slug %}"><i class="fas fa-edit me-2"></i>{% trans 'Editar' %}</a></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'delete_course' slug=course.slug %}"><i class="fas fa-trash-alt me-2"></i>{% trans 'Eliminar' %}</a></li>
+                            </ul>
+                        </div>
+                    </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">{% trans 'No hay materias registradas.' %}</td>
+                    <td colspan="6" class="text-center text-muted py-4">{% trans 'No hay materias registradas.' %}</td>
                 </tr>
             {% endfor %}
         </tbody>
