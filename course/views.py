@@ -1,5 +1,5 @@
-import math
-from datetime import timedelta
+﻿import math
+from datetime import timedelta, datetime
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -25,6 +25,8 @@ from core.models import (
     AttendanceJustification,
     AttendanceRecord,
     BulkUploadRequest,
+    Room,
+    RoomBlock,
     SectionSession,
     Semester,
 )
@@ -34,6 +36,7 @@ from core.notifications import (
     notify_teacher_missing_attendance,
     notify_bedelia_teacher_missing,
     notify_justification_result,
+    notify_room_change,
 )
 from course.filters import CourseAllocationFilter, ProgramFilter
 from course.forms import (
@@ -45,6 +48,8 @@ from course.forms import (
     UniversityForm,
     UploadFormFile,
     UploadFormVideo,
+    SectionEnrollmentForm,
+    SectionEnrollmentUploadForm,
 )
 from course.models import (
     Course,
@@ -60,7 +65,9 @@ from result.models import TakenCourse
 
 def _can_manage_sections(user):
     return user.is_authenticated and (
-        user.is_superuser or getattr(user, "role", None) == User.Roles.COORDINATOR
+        user.is_superuser
+        or getattr(user, "role", None)
+        in {User.Roles.COORDINATOR, User.Roles.ADMIN, User.Roles.BEDEL, User.Roles.MANAGEMENT}
     )
 
 
@@ -82,10 +89,12 @@ def ensure_section_permission(user):
 def ensure_section_access(user, section):
     if user.is_superuser:
         return
-    if (
-        getattr(user, "role", None) == User.Roles.COORDINATOR
-        and section.program.coordinators.filter(pk=user.pk).exists()
-    ):
+    role = getattr(user, "role", None)
+    if role in {User.Roles.ADMIN, User.Roles.BEDEL, User.Roles.MANAGEMENT}:
+        return
+    if role == User.Roles.COORDINATOR and section.program.coordinators.filter(
+        pk=user.pk
+    ).exists():
         return
     raise PermissionDenied
 
@@ -124,11 +133,11 @@ def _regularity_status(section, student):
 DAY_TO_WEEKDAY = {
     "lunes": 0,
     "martes": 1,
-    "miércoles": 2,
+    "miÃ©rcoles": 2,
     "miercoles": 2,
     "jueves": 3,
     "viernes": 4,
-    "sábado": 5,
+    "sÃ¡bado": 5,
     "sabado": 5,
     "domingo": 6,
 }
@@ -136,7 +145,7 @@ DAY_TO_WEEKDAY = {
 
 def _generate_section_sessions(section):
     """
-    Genera las clases de cursada según días/horarios definidos en la comisión.
+    Genera las clases de cursada segÃºn dÃ­as/horarios definidos en la comisiÃ³n.
     Borra las existentes y recrea.
     """
     SectionSession.objects.filter(section=section).delete()
@@ -177,6 +186,80 @@ def _generate_section_sessions(section):
         current += timedelta(days=1)
 
 
+
+def _time_windows(section):
+    windows = []
+    schedule_map = {}
+    for item in getattr(section, "schedule_by_day", []) or []:
+        day = (item.get("day") or "").lower()
+        start = item.get("start")
+        end = item.get("end")
+        if day and start and end:
+            try:
+                start_t = datetime.strptime(start, "%H:%M").time()
+                end_t = datetime.strptime(end, "%H:%M").time()
+            except ValueError:
+                continue
+            schedule_map[day] = (start_t, end_t)
+    for day in section.days_of_week or []:
+        key = day.lower()
+        if schedule_map.get(key):
+            start_t, end_t = schedule_map[key]
+        else:
+            if not section.start_time or not section.end_time:
+                continue
+            start_t, end_t = section.start_time, section.end_time
+        windows.append((key, start_t, end_t))
+    return windows
+
+
+def _room_available(room, section):
+    # Conflictos por bloqueos
+    for sess in section.sessions.all():
+        blocks = RoomBlock.objects.filter(
+            room=room,
+            is_active=True,
+            start_date__lte=sess.date,
+            end_date__gte=sess.date,
+        )
+        for block in blocks:
+            if not block.start_time or not block.end_time:
+                return False
+            if block.start_time < sess.end_time and block.end_time > sess.start_time:
+                return False
+
+    # Conflictos con otras comisiones en la misma sala
+    windows = _time_windows(section)
+    others = CourseSection.objects.filter(room=room).exclude(pk=section.pk)
+    for other in others:
+        if other.start_date > section.end_date or other.end_date < section.start_date:
+            continue
+        other_windows = _time_windows(other)
+        for d1, s1, e1 in windows:
+            for d2, s2, e2 in other_windows:
+                if d1 == d2 and s1 < e2 and e1 > s2:
+                    return False
+    return True
+
+
+def _auto_assign_room(section):
+    if section.room_id:
+        return None
+    sessions = list(section.sessions.all())
+    if not sessions:
+        return None
+    capacity_needed = section.max_capacity or section.students.count()
+    rooms = Room.objects.filter(is_enabled=True).order_by("capacity", "code")
+    for room in rooms:
+        if room.capacity and capacity_needed and room.capacity < capacity_needed:
+            continue
+        if _room_available(room, section):
+            section.room = room
+            section.save(update_fields=["room"])
+            return room
+    return None
+
+
 # ########################################################
 # Program Views
 # ########################################################
@@ -200,7 +283,7 @@ def university_add(request):
         form = UniversityForm(request.POST)
         if form.is_valid():
             uni = form.save()
-            messages.success(request, f"Se creó la universidad {uni.name}.")
+            messages.success(request, f"Se creÃ³ la universidad {uni.name}.")
             return redirect("university_list")
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -218,7 +301,7 @@ def university_edit(request, pk):
         form = UniversityForm(request.POST, instance=uni)
         if form.is_valid():
             uni = form.save()
-            messages.success(request, f"Se actualizó la universidad {uni.name}.")
+            messages.success(request, f"Se actualizÃ³ la universidad {uni.name}.")
             return redirect("university_list")
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -234,7 +317,7 @@ def university_delete(request, pk):
     uni = get_object_or_404(University, pk=pk)
     name = uni.name
     uni.delete()
-    messages.success(request, f"Se eliminó la universidad {name}.")
+    messages.success(request, f"Se eliminÃ³ la universidad {name}.")
     return redirect("university_list")
 
 
@@ -256,7 +339,7 @@ def program_add(request):
         form = ProgramForm(request.POST)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"Se creó la carrera {program.title}.")
+            messages.success(request, f"Se creÃ³ la carrera {program.title}.")
             return redirect("programs")
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -305,7 +388,7 @@ def program_edit(request, pk):
         form = ProgramForm(request.POST, instance=program)
         if form.is_valid():
             program = form.save()
-            messages.success(request, f"Se actualizó la carrera {program.title}.")
+            messages.success(request, f"Se actualizÃ³ la carrera {program.title}.")
             return redirect("programs")
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -321,7 +404,7 @@ def program_delete(request, pk):
     program = get_object_or_404(Program, pk=pk)
     title = program.title
     program.delete()
-    messages.success(request, f"Se eliminó la carrera {title}.")
+    messages.success(request, f"Se eliminÃ³ la carrera {title}.")
     return redirect("programs")
 
 
@@ -384,7 +467,7 @@ def course_add(request, pk):
         form = CourseAddForm(request.POST)
         if form.is_valid():
             course = form.save()
-            messages.success(request, f'Se creó la materia {course.title} ({course.code}).')
+            messages.success(request, f'Se creÃ³ la materia {course.title} ({course.code}).')
             return redirect('course_list')
         messages.error(request, 'Corrige los errores indicados abajo.')
     else:
@@ -404,7 +487,7 @@ def course_edit(request, slug):
         form = CourseAddForm(request.POST, instance=course)
         if form.is_valid():
             course = form.save()
-            messages.success(request, f'Se actualizó la materia {course.title} ({course.code}).')
+            messages.success(request, f'Se actualizÃ³ la materia {course.title} ({course.code}).')
             return redirect('course_list')
         messages.error(request, 'Corrige los errores indicados abajo.')
     else:
@@ -419,7 +502,7 @@ def course_edit(request, slug):
         if form.is_valid():
             course = form.save()
             messages.success(
-                request, f"Se actualizó la materia {course.title} ({course.code})."
+                request, f"Se actualizÃ³ la materia {course.title} ({course.code})."
             )
             return redirect("course_list")
         messages.error(request, "Corrige los errores indicados abajo.")
@@ -437,7 +520,7 @@ def course_delete(request, slug):
     title = course.title
     program_id = course.program.id
     course.delete()
-    messages.success(request, f"Se eliminó la materia {title}.")
+    messages.success(request, f"Se eliminÃ³ la materia {title}.")
     return redirect("program_detail", pk=program_id)
 
 
@@ -497,7 +580,7 @@ def course_section_create(request):
             _generate_section_sessions(section)
             messages.success(
                 request,
-                f"Se creó la comisión de '{section.course}' para el turno {section.turn}.",
+                f"Se creÃ³ la comisiÃ³n de '{section.course}' para el turno {section.turn}.",
             )
             return redirect("course_section_list")
         messages.error(request, "Corrige los errores indicados abajo.")
@@ -506,7 +589,7 @@ def course_section_create(request):
     return render(
         request,
         "course/section_form.html",
-        {"form": form, "title": "Nueva comisión"},
+        {"form": form, "title": "Nueva comisiÃ³n"},
     )
 
 
@@ -521,7 +604,7 @@ def course_section_update(request, pk):
             _generate_section_sessions(section)
             messages.success(
                 request,
-                f"Se actualizó la comisión de '{section.course}'.",
+                f"Se actualizÃ³ la comisiÃ³n de '{section.course}'.",
             )
             return redirect("course_section_list")
         messages.error(request, "Corrige los errores indicados abajo.")
@@ -530,7 +613,7 @@ def course_section_update(request, pk):
     return render(
         request,
         "course/section_form.html",
-        {"form": form, "title": "Editar comisión"},
+        {"form": form, "title": "Editar comisiÃ³n"},
     )
 
 
@@ -543,13 +626,13 @@ def course_section_delete(request, pk):
         section.delete()
         messages.success(
             request,
-            f"Se eliminó la comisión asociada a '{course_name}'.",
+            f"Se eliminÃ³ la comisiÃ³n asociada a '{course_name}'.",
         )
         return redirect("course_section_list")
     return render(
         request,
         "course/section_confirm_delete.html",
-        {"section": section, "title": "Eliminar comisión"},
+        {"section": section, "title": "Eliminar comisiÃ³n"},
     )
 
 
@@ -571,7 +654,7 @@ def section_sessions_view(request, pk):
                 new_session = session_form.save(commit=False)
                 new_session.created_by = request.user
                 new_session.save()
-                messages.success(request, "Se agregó la clase al calendario.")
+                messages.success(request, "Se agregÃ³ la clase al calendario.")
                 return redirect("section_sessions", pk=section.pk)
             messages.error(request, "Revisa los datos ingresados.")
         elif action == "disable_session":
@@ -598,7 +681,7 @@ def section_sessions_view(request, pk):
             target_session.cancellation_reason = ""
             target_session.cancelled_by = None
             target_session.save()
-            messages.success(request, "La clase volvió a estar habilitada.")
+            messages.success(request, "La clase volviÃ³ a estar habilitada.")
             return redirect("section_sessions", pk=section.pk)
     context = {
         "section": section,
@@ -620,7 +703,7 @@ def session_attendance_view(request, session_id):
     }
     if request.method == "POST":
         if session.is_cancelled:
-            messages.error(request, "No podés cargar asistencia en una clase suspendida.")
+            messages.error(request, "No podÃ©s cargar asistencia en una clase suspendida.")
         else:
             new_absences = []
             for student in students:
@@ -645,11 +728,11 @@ def session_attendance_view(request, session_id):
                     is_reg, remaining, allowed = _regularity_status(
                         session.section, student
                     )
-                    new_absences.append((student, remaining, allowed))
+                    new_absences.append((record, remaining, allowed))
             session.attendance_submitted = True
             session.save(update_fields=["attendance_submitted"])
-            for student, remaining, allowed in new_absences:
-                notify_absence(student, session.section, remaining, allowed)
+            for record, remaining, allowed in new_absences:
+                notify_absence(record, remaining, allowed)
             messages.success(request, "Asistencia guardada correctamente.")
             return redirect("session_attendance", session_id=session.pk)
     student_rows = []
@@ -667,6 +750,7 @@ def session_attendance_view(request, session_id):
                 "allowed_absences": allowed_absences,
             }
         )
+    student_rows.sort(key=lambda r: (r["is_regular"], r["student"].get_full_name()))
     pending_justifications = AttendanceJustification.objects.filter(
         attendance_record__session=session,
         status=AttendanceJustification.PENDING,
@@ -696,7 +780,7 @@ def section_upload_planilla(request, pk):
             enqueue_ai_processing(upload_request)
             messages.success(
                 request,
-                "Planilla enviada. El procesamiento automático se completará cuando el servicio de IA esté disponible.",
+                "Planilla enviada. El procesamiento automÃ¡tico se completarÃ¡ cuando el servicio de IA estÃ© disponible.",
             )
             return redirect("section_upload_planilla", pk=section.pk)
         messages.error(request, "No fue posible registrar el archivo. Revisa los datos.")
@@ -724,7 +808,7 @@ def submit_justification(request, token):
         form = AttendanceJustificationForm(request.POST, request.FILES, instance=justification)
         if form.is_valid():
             form.save()
-            messages.success(request, "Justificación enviada. Quedará pendiente de aprobación.")
+            messages.success(request, "JustificaciÃ³n enviada. QuedarÃ¡ pendiente de aprobaciÃ³n.")
             return redirect("home")
         messages.error(request, "Revisa los errores del formulario.")
     else:
@@ -756,9 +840,9 @@ def review_justification(request, pk):
                 justification.attendance_record.status = AttendanceRecord.JUSTIFIED
                 justification.attendance_record.save(update_fields=["status"])
             notify_justification_result(justification)
-            messages.success(request, "Justificación actualizada.")
+            messages.success(request, "JustificaciÃ³n actualizada.")
             return redirect("section_sessions", pk=section.pk)
-        messages.error(request, "Ocurrió un error al actualizar.")
+        messages.error(request, "OcurriÃ³ un error al actualizar.")
     else:
         form = AttendanceJustificationReviewForm(instance=justification)
     return render(
@@ -849,7 +933,7 @@ def handle_file_upload(request, slug):
             upload = form.save(commit=False)
             upload.course = course
             upload.save()
-            messages.success(request, f"Se subió '{upload.title}'.")
+            messages.success(request, f"Se subiÃ³ '{upload.title}'.")
             return redirect("course_detail", slug=slug)
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -870,7 +954,7 @@ def handle_file_edit(request, slug, file_id):
         form = UploadFormFile(request.POST, request.FILES, instance=upload)
         if form.is_valid():
             upload = form.save()
-            messages.success(request, f"Se actualizó '{upload.title}'.")
+            messages.success(request, f"Se actualizÃ³ '{upload.title}'.")
             return redirect("course_detail", slug=slug)
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -888,7 +972,7 @@ def handle_file_delete(request, slug, file_id):
     upload = get_object_or_404(Upload, pk=file_id)
     title = upload.title
     upload.delete()
-    messages.success(request, f"Se eliminó '{title}'.")
+    messages.success(request, f"Se eliminÃ³ '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -907,7 +991,7 @@ def handle_video_upload(request, slug):
             video = form.save(commit=False)
             video.course = course
             video.save()
-            messages.success(request, f"Se subió el video '{video.title}'.")
+            messages.success(request, f"Se subiÃ³ el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -939,7 +1023,7 @@ def handle_video_edit(request, slug, video_slug):
         form = UploadFormVideo(request.POST, request.FILES, instance=video)
         if form.is_valid():
             video = form.save()
-            messages.success(request, f"Se actualizó el video '{video.title}'.")
+            messages.success(request, f"Se actualizÃ³ el video '{video.title}'.")
             return redirect("course_detail", slug=slug)
         messages.error(request, "Corrige los errores indicados abajo.")
     else:
@@ -957,7 +1041,7 @@ def handle_video_delete(request, slug, video_slug):
     video = get_object_or_404(UploadVideo, slug=video_slug)
     title = video.title
     video.delete()
-    messages.success(request, f"Se eliminó el video '{title}'.")
+    messages.success(request, f"Se eliminÃ³ el video '{title}'.")
     return redirect("course_detail", slug=slug)
 
 
@@ -985,7 +1069,7 @@ def course_registration(request):
     else:
         current_semester = Semester.objects.filter(is_current_semester=True).first()
         if not current_semester:
-            messages.error(request, "No se encontró un cuatrimestre activo.")
+            messages.error(request, "No se encontrÃ³ un cuatrimestre activo.")
             return render(request, "course/course_registration.html")
 
         # student = Student.objects.get(student__pk=request.user.id)
@@ -1067,8 +1151,16 @@ def course_drop(request):
 @login_required
 def user_course_list(request):
     if request.user.is_lecturer:
-        courses = Course.objects.filter(allocated_course__lecturer__pk=request.user.id)
-        return render(request, "course/user_course_list.html", {"courses": courses})
+        sections = (
+            CourseSection.objects.filter(teachers=request.user)
+            .select_related("course", "semester", "turn", "room")
+            .order_by("course__title")
+        )
+        return render(
+            request,
+            "course/user_course_list.html",
+            {"sections": sections, "title": "Mis comisiones"},
+        )
 
     if request.user.is_student:
         student = get_object_or_404(Student, student__pk=request.user.id)
@@ -1081,4 +1173,30 @@ def user_course_list(request):
 
     # For other users
     return render(request, "course/user_course_list.html")
+
+
+@login_required
+def section_enrollment(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    if request.method == "POST":
+        form = SectionEnrollmentForm(request.POST, section=section)
+        if form.is_valid():
+            students = form.cleaned_data.get("students") or []
+            section.students.set(students)
+            messages.success(request, "Alumnos actualizados para la comisión.")
+            return redirect("section_enrollment", pk=section.pk)
+        messages.error(request, "Revisa los errores del formulario.")
+    else:
+        form = SectionEnrollmentForm(section=section)
+    return render(
+        request,
+        "course/section_enrollment.html",
+        {
+            "form": form,
+            "section": section,
+            "title": "Asignar alumnos",
+        },
+    )
+
 

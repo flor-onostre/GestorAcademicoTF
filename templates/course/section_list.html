@@ -124,12 +124,13 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <div class="dropdown">
+                            <div class="dropdown" style="position: relative;">
                                 <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fa fa-ellipsis-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
+                                <ul class="dropdown-menu dropdown-menu-end" style="overflow: visible;">
                                     <li><a class="dropdown-item" href="{% url 'course_section_update' section.pk %}"><i class="fas fa-edit me-2"></i>{% trans "Editar" %}</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'section_enrollment' section.pk %}"><i class="fas fa-user-plus me-2"></i>{% trans "Matricular alumnos" %}</a></li>
                                     <li><a class="dropdown-item text-danger" href="{% url 'course_section_delete' section.pk %}"><i class="fas fa-trash-alt me-2"></i>{% trans "Eliminar" %}</a></li>
                                 </ul>
                             </div>

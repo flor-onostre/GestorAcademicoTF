@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db.models.functions import ExtractWeek
 
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import User, Student
@@ -16,6 +17,7 @@ from .forms import (
     RoomForm,
     SemesterForm,
     SessionForm,
+    RoomBlockForm,
 )
 from .models import (
     ActivityLog,
@@ -26,6 +28,7 @@ from .models import (
     EventInvitation,
     NewsAndEvents,
     Room,
+    RoomBlock,
     SectionSession,
     Session,
     Semester,
@@ -183,16 +186,59 @@ def attendance_dashboard(request):
         .annotate(total=models.Count("id"))
         .order_by("-total")[:10]
     )
-    room_usage = (
-        CourseSection.objects.exclude(room__isnull=True)
-        .values("room__code")
+    absence_by_program = (
+        AttendanceRecord.objects.filter(status=AttendanceRecord.Status.ABSENT)
+        .values("session__section__program__title")
         .annotate(total=models.Count("id"))
         .order_by("-total")
     )
+    absence_by_week = (
+        AttendanceRecord.objects.filter(status=AttendanceRecord.Status.ABSENT)
+        .annotate(week=ExtractWeek("session__date"))
+        .values("week")
+        .annotate(total=models.Count("id"))
+        .order_by("-week")
+    )
+    room_usage = (
+        CourseSection.objects.exclude(room__isnull=True)
+        .values("room__code", "room__capacity")
+        .annotate(secciones=models.Count("id"))
+        .order_by("room__code")
+    )
+    room_blocks = (
+        RoomBlock.objects.filter(is_active=True)
+        .values("room__code")
+        .annotate(bloqueos=models.Count("id"))
+    )
+    block_map = {item["room__code"]: item["bloqueos"] for item in room_blocks}
+    rooms_detail = []
+    for usage in room_usage:
+        code = usage["room__code"]
+        rooms_detail.append(
+            {
+                "code": code,
+                "capacity": usage.get("room__capacity") or 0,
+                "sections": usage["secciones"],
+                "blocks": block_map.get(code, 0),
+            }
+        )
+    # Agrupar docentes con sesiones sin cargar
+    teacher_pending = {}
+    for sess in missing_sessions:
+        for teacher in sess.section.teachers.all():
+            teacher_pending.setdefault(teacher, []).append(sess)
+    teacher_pending_list = [
+        {"teacher": t, "sessions": sorted(s_list, key=lambda s: s.date)}
+        for t, s_list in teacher_pending.items()
+    ]
     context = {
         "missing_sessions": missing_sessions,
         "absence_stats": absence_stats,
+        "absence_by_program": absence_by_program,
+        "absence_by_week": absence_by_week,
+        "teacher_pending": teacher_pending_list,
         "room_usage": room_usage,
+        "rooms_detail": rooms_detail,
         "uploads_pending": BulkUploadRequest.objects.all()
         .select_related("section__course")
         .order_by("-created_at"),
@@ -555,6 +601,58 @@ def room_list_view(request):
             "selected_floor": selected_floor,
         },
     )
+
+
+
+@login_required
+@admin_required
+def room_block_list(request):
+    blocks = RoomBlock.objects.select_related("room", "room__floor").order_by("-start_date", "-start_time")
+    return render(request, "core/room_block_list.html", {"blocks": blocks, "title": "Bloqueos de espacios"})
+
+
+@login_required
+@admin_required
+def room_block_add(request):
+    if request.method == "POST":
+        form = RoomBlockForm(request.POST)
+        if form.is_valid():
+            block = form.save(commit=False)
+            block.created_by = request.user
+            block.save()
+            messages.success(request, "Bloqueo creado correctamente.")
+            return redirect("room_block_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = RoomBlockForm()
+    return render(request, "core/room_block_form.html", {"form": form, "title": "Nuevo bloqueo"})
+
+
+@login_required
+@admin_required
+def room_block_edit(request, pk):
+    block = get_object_or_404(RoomBlock, pk=pk)
+    if request.method == "POST":
+        form = RoomBlockForm(request.POST, instance=block)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Bloqueo actualizado correctamente.")
+            return redirect("room_block_list")
+        messages.error(request, "Corrige los errores indicados abajo.")
+    else:
+        form = RoomBlockForm(instance=block)
+    return render(request, "core/room_block_form.html", {"form": form, "title": "Editar bloqueo"})
+
+
+@login_required
+@admin_required
+def room_block_delete(request, pk):
+    block = get_object_or_404(RoomBlock, pk=pk)
+    if request.method == "POST":
+        block.delete()
+        messages.success(request, "Bloqueo eliminado correctamente.")
+        return redirect("room_block_list")
+    return render(request, "core/room_block_confirm_delete.html", {"block": block, "title": "Eliminar bloqueo"})
 
 
 @login_required

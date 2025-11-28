@@ -1,4 +1,4 @@
-from django import forms
+﻿from django import forms
 from django.conf import settings
 from datetime import datetime
 import json
@@ -35,20 +35,20 @@ class ProgramForm(forms.ModelForm):
 
         labels = {
             "title": "Nombre de la carrera",
-            "summary": "Descripción",
+            "summary": "DescripciÃ³n",
             "university": "Universidad",
             "program_type": "Tipo de carrera",
-            "allows_promotion": "Permite promoción",
-            "pass_score": "Nota mínima para aprobar",
-            "promotion_score": "Nota mínima para promocionar",
-            "min_passing_attendance": "Asistencia mínima para aprobar (%)",
-            "min_promotion_attendance": "Asistencia mínima para promocionar (%)",
+            "allows_promotion": "Permite promociÃ³n",
+            "pass_score": "Nota mÃ­nima para aprobar",
+            "promotion_score": "Nota mÃ­nima para promocionar",
+            "min_passing_attendance": "Asistencia mÃ­nima para aprobar (%)",
+            "min_promotion_attendance": "Asistencia mÃ­nima para promocionar (%)",
             "is_active": "Activa",
         }
         help_texts = {
             "allows_promotion": "Indica si la carrera permite promocionar materias sin final.",
-            "pass_score": "Nota mínima para aprobar (0 a 10).",
-            "promotion_score": "Nota mínima para promocionar (0 a 10).",
+            "pass_score": "Nota mÃ­nima para aprobar (0 a 10).",
+            "promotion_score": "Nota mÃ­nima para promocionar (0 a 10).",
             "min_passing_attendance": "Porcentaje de asistencia requerido para aprobar.",
             "min_promotion_attendance": "Porcentaje de asistencia requerido para promocionar.",
         }
@@ -91,18 +91,18 @@ class CourseAddForm(forms.ModelForm):
 
         labels = {
             "title": "Nombre de la materia",
-            "code": "Código",
-            "credit": "Créditos",
-            "summary": "Descripción",
+            "code": "CÃ³digo",
+            "credit": "CrÃ©ditos",
+            "summary": "DescripciÃ³n",
             "programs": "Carreras",
             "is_elective": "Materia optativa",
-            "evaluation_mode": "Modo de evaluación",
+            "evaluation_mode": "Modo de evaluaciÃ³n",
             "prerequisites": "Correlativas",
         }
         help_texts = {
             "programs": "Seleccione una o varias carreras a las que pertenece la materia.",
             "evaluation_mode": "Define si la materia es promocionable o requiere final.",
-            "prerequisites": "Tilde y destilde correlativas según corresponda.",
+            "prerequisites": "Tilde y destilde correlativas segÃºn corresponda.",
         }
         for fname, label in labels.items():
             if fname in self.fields:
@@ -175,7 +175,7 @@ class UploadFormFile(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
         self.fields["file"].widget.attrs.update({"class": "form-control"})
-        self.fields["title"].label = "Título"
+        self.fields["title"].label = "TÃ­tulo"
         self.fields["file"].label = "Archivo"
 
 
@@ -188,7 +188,7 @@ class UploadFormVideo(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
         self.fields["video"].widget.attrs.update({"class": "form-control"})
-        self.fields["title"].label = "Título"
+        self.fields["title"].label = "TÃ­tulo"
         self.fields["video"].label = "Video"
 
 
@@ -199,7 +199,7 @@ class UniversityForm(forms.ModelForm):
         labels = {
             "name": "Nombre de la universidad",
             "short_name": "Sigla",
-            "description": "Descripción",
+            "description": "DescripciÃ³n",
             "is_active": "Activa",
         }
         widgets = {
@@ -228,7 +228,7 @@ class CourseSectionForm(forms.ModelForm):
     )
     enable_custom_schedule = forms.BooleanField(
         required=False,
-        label="Habilitar horarios diferentes por día",
+        label="Habilitar horarios diferentes por dÃ­a",
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
     schedule_by_day = forms.CharField(required=False, widget=forms.HiddenInput())
@@ -251,18 +251,18 @@ class CourseSectionForm(forms.ModelForm):
     DAYS_CHOICES = [
         ("Lunes", "Lunes"),
         ("Martes", "Martes"),
-        ("Miércoles", "Miércoles"),
+        ("MiÃ©rcoles", "MiÃ©rcoles"),
         ("Jueves", "Jueves"),
         ("Viernes", "Viernes"),
-        ("Sábado", "Sábado"),
+        ("SÃ¡bado", "SÃ¡bado"),
     ]
 
     days_of_week = forms.MultipleChoiceField(
         choices=DAYS_CHOICES,
         required=False,
         widget=forms.CheckboxSelectMultiple,
-        label="Días de cursada",
-        help_text="Seleccione los días en los que se cursa la comisión.",
+        label="DÃ­as de cursada",
+        help_text="Seleccione los dÃ­as en los que se cursa la comisiÃ³n.",
     )
 
     def __init__(self, *args, **kwargs):
@@ -283,8 +283,8 @@ class CourseSectionForm(forms.ModelForm):
                 self.fields["semester"].queryset.select_related("session").order_by("-session__year", "semester")
             )
             verbose_map = {
-                "FIRST": "1° Cuatrimestre",
-                "SECOND": "2° Cuatrimestre",
+                "FIRST": "1Â° Cuatrimestre",
+                "SECOND": "2Â° Cuatrimestre",
                 "SUMMER": "Materias de Verano",
             }
             self.fields["semester"].label_from_instance = lambda obj: verbose_map.get(obj.semester, obj.semester)
@@ -363,21 +363,21 @@ class CourseSectionForm(forms.ModelForm):
             "end_date": "Fecha de fin",
             "start_time": "Hora de inicio (general)",
             "end_time": "Hora de fin (general)",
-            "days_of_week": "Días de cursada",
-            "schedule_by_day": "Horarios por día",
+            "days_of_week": "DÃ­as de cursada",
+            "schedule_by_day": "Horarios por dÃ­a",
             "max_capacity": "Cupo",
             "is_active": "Activa",
-            "attendance_required": "Asistencia mínima (aprobación)",
-            "promotion_attendance_required": "Asistencia mínima (promoción)",
-            "code": "Código",
+            "attendance_required": "Asistencia mÃ­nima (aprobaciÃ³n)",
+            "promotion_attendance_required": "Asistencia mÃ­nima (promociÃ³n)",
+            "code": "CÃ³digo",
         }
         help_texts = {
-            "program": "Carrera responsable de la comisión.",
-            "days_of_week": "Seleccione los días en los que se cursa la comisión.",
+            "program": "Carrera responsable de la comisiÃ³n.",
+            "days_of_week": "Seleccione los dÃ­as en los que se cursa la comisiÃ³n.",
             "schedule_by_day": "Ejemplo: Lunes 08:00-10:00; Martes 09:00-11:00",
-            "attendance_required": "Porcentaje mínimo de asistencia para aprobar la comisión.",
-            "promotion_attendance_required": "Porcentaje mínimo de asistencia para promocionar la comisión.",
-            "code": "Código identificador de la comisión.",
+            "attendance_required": "Porcentaje mÃ­nimo de asistencia para aprobar la comisiÃ³n.",
+            "promotion_attendance_required": "Porcentaje mÃ­nimo de asistencia para promocionar la comisiÃ³n.",
+            "code": "CÃ³digo identificador de la comisiÃ³n.",
             "session": "Seleccione el ciclo lectivo al que pertenece el cuatrimestre.",
         }
         for fname, label in labels.items():
@@ -436,12 +436,12 @@ class CourseSectionForm(forms.ModelForm):
 
         if enable_custom:
             if not days:
-                self.add_error("days_of_week", "Seleccione al menos un día para definir horarios.")
+                self.add_error("days_of_week", "Seleccione al menos un dÃ­a para definir horarios.")
                 return cleaned
             try:
                 sched_list = json.loads(sched_raw) if sched_raw else []
             except Exception:
-                self.add_error("schedule_by_day", "Formato de horarios por día inválido.")
+                self.add_error("schedule_by_day", "Formato de horarios por dÃ­a invÃ¡lido.")
                 return cleaned
             schedule = []
             day_set = {d.lower() for d in days}
@@ -455,7 +455,7 @@ class CourseSectionForm(forms.ModelForm):
                     start_t = datetime.strptime(start, "%H:%M").time()
                     end_t = datetime.strptime(end, "%H:%M").time()
                 except ValueError:
-                    self.add_error("schedule_by_day", f"Horario inválido para {day}. Use HH:MM.")
+                    self.add_error("schedule_by_day", f"Horario invÃ¡lido para {day}. Use HH:MM.")
                     return cleaned
                 if start_t >= end_t:
                     self.add_error("schedule_by_day", f"La hora de inicio debe ser menor que la de fin ({day}).")
@@ -475,3 +475,41 @@ class CourseSectionForm(forms.ModelForm):
             if start and end and start >= end:
                 self.add_error("start_time", "La hora de inicio debe ser menor que la de fin.")
         return cleaned
+
+class SectionEnrollmentForm(forms.Form):
+    search = forms.CharField(
+        required=False,
+        label="Buscar (dni, nombre o apellido)",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Buscar"}),
+    )
+    students = forms.ModelMultipleChoiceField(
+        queryset=User.objects.filter(role=User.Roles.STUDENT).order_by("first_name", "last_name"),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "list-unstyled"}),
+        label="Alumnos",
+        help_text="Seleccione los alumnos inscriptos en esta comisión.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        section = kwargs.pop("section", None)
+        queryset_override = kwargs.pop("available_students", None)
+        super().__init__(*args, **kwargs)
+        if section:
+            program_ids = list(section.course.programs.values_list("id", flat=True))
+            qs = self.fields["students"].queryset
+            if queryset_override is not None:
+                qs = queryset_override
+            elif program_ids:
+                qs = qs.filter(student__programs__id__in=program_ids).distinct()
+            self.fields["students"].queryset = qs.order_by("first_name", "last_name")
+            self.fields["students"].initial = section.students.all()
+
+
+class SectionEnrollmentUploadForm(forms.Form):
+    file = forms.FileField(
+        required=True,
+        label="Archivo (CSV / XLSX / PDF)",
+        widget=forms.FileInput(attrs={"class": "form-control"}),
+        help_text="Suba una lista con DNI o email para pre-seleccionar alumnos.",
+    )
+

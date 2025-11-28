@@ -20,6 +20,7 @@ from .models import (
     Semester,
     Session,
     TEACHER_ALLOWED_AUDIENCE,
+    RoomBlock,
 )
 
 
@@ -428,3 +429,43 @@ class AttendanceUploadForm(forms.ModelForm):
             "file": forms.ClearableFileInput(attrs={"class": "form-control", "accept": ".xls,.xlsx,.pdf"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
+
+
+class RoomBlockForm(forms.ModelForm):
+    class Meta:
+        model = RoomBlock
+        fields = ["room", "start_date", "end_date", "start_time", "end_time", "reason", "is_active"]
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "start_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "end_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "reason": forms.TextInput(attrs={"class": "form-control"}),
+        }
+        labels = {
+            "room": _("Espacio"),
+            "start_date": _("Fecha desde"),
+            "end_date": _("Fecha hasta"),
+            "start_time": _("Hora inicio"),
+            "end_time": _("Hora fin"),
+            "reason": _("Motivo"),
+            "is_active": _("Activo"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["room"].queryset = Room.objects.filter(is_enabled=True).order_by("code")
+        self.fields["room"].widget.attrs.setdefault("class", "browser-default custom-select form-control")
+        self.fields["is_active"].widget.attrs.setdefault("class", "form-check-input")
+
+    def clean(self):
+        cleaned = super().clean()
+        start_date = cleaned.get("start_date")
+        end_date = cleaned.get("end_date")
+        start_time = cleaned.get("start_time")
+        end_time = cleaned.get("end_time")
+        if start_date and end_date and start_date > end_date:
+            raise ValidationError(_("La fecha de inicio debe ser anterior a la de fin."))
+        if start_time and end_time and start_time >= end_time:
+            raise ValidationError(_("La hora de inicio debe ser menor que la de fin."))
+        return cleaned

@@ -21,7 +21,7 @@
             </thead>
             <tbody>
                 {% for row in student_rows %}
-                    <tr class="{% if not row.is_regular %}table-warning{% endif %}">
+                    <tr class="{% if not row.is_regular %}table-secondary{% endif %}">
                         <td>{{ row.student.student.get_full_name }}</td>
                         <td>
                             <select name="student_{{ row.student.id }}" class="form-select form-select-sm">

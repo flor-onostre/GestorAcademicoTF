@@ -71,3 +71,5 @@ python manage.py runserver
 ## Otros
 - UI en español, textos de cambio de contraseña y formularios localizados.
 - Para probar envíos sin SMTP real, usar backend de consola: `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`.
+- Importacion inteligente: instala openpyxl, pdf2image, pytesseract (mas Tesseract en el sistema) y Ollama con el modelo llama3 si quieres usar OCR/LLM para mapear columnas.
+- Backend Brevo (API v3): EMAIL_BACKEND=accounts.email_backend.BrevoEmailBackend y BREVO_API_KEY en .env.\n

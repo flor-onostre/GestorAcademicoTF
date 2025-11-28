@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.template.loader import render_to_string, TemplateDoesNotExist
+from django.urls import reverse
 from django.utils.html import strip_tags
 
 from core.utils import send_html_email
@@ -25,12 +26,21 @@ def _send(template, context, subject, recipients):
         )
 
 
-def notify_absence(student, section, remaining_absences, allowed_absences):
+def notify_absence(record, remaining_absences, allowed_absences):
+    student = record.student
+    section = record.session.section if record.session else record.section
+    token = getattr(record, "justification_token", None)
+    base_url = getattr(settings, "SITE_URL", "").rstrip("/")
+    justify_path = (
+        reverse("submit_justification", args=[token]) if token else ""
+    )
+    justify_link = f"{base_url}{justify_path}" if base_url else justify_path
     context = {
         "student": student,
         "section": section,
         "remaining_absences": remaining_absences,
         "allowed_absences": allowed_absences,
+        "justify_link": justify_link,
         "site_name": getattr(settings, "SITE_NAME", "Campus"),
     }
     _send(
@@ -86,6 +96,7 @@ def notify_room_change(section, old_room, new_room):
     recipients = list(section.students.values_list("email", flat=True)) + list(
         section.teachers.values_list("email", flat=True)
     )
+    recipients += list(getattr(settings, "BEDELIA_EMAILS", []))
     context = {"section": section, "old_room": old_room, "new_room": new_room}
     _send(
         "emails/room_change.html",

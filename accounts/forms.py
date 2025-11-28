@@ -399,7 +399,8 @@ class StudentAddForm(UserCreationForm):
 
     @transaction.atomic
     def save(self, commit=True):
-        user = super().save(commit=False)
+        # Bypass UserCreationForm password1/2 handling (campos removidos)
+        user = super(UserCreationForm, self).save(commit=False)
         user.role = User.Roles.STUDENT
         dni = self.cleaned_data.get("dni") or user.username
         if dni:

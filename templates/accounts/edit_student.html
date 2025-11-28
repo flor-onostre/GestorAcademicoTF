@@ -38,7 +38,7 @@
             <div class="card">
                 <p class="form-title">{% trans 'Otros' %}</p>
                 <div class="card-body">
-                    {{ form.picture|as_crispy_field }}
+                    {% if form.picture %}{{ form.picture|as_crispy_field }}{% endif %}
                     {{ form.programs|as_crispy_field }}
                 </div>
             </div>
@@ -51,4 +51,9 @@
 </form>
 
 {% endblock content %}
+
+
+                    {# Ocultamos foto si no existe en el form #}
+                    {% if form.picture %}{% if form.picture %}{{ form.picture|as_crispy_field }}{% endif %}{% endif %}
+
 

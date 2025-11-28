@@ -1,24 +1,226 @@
+﻿import csv
+import json
+from pathlib import Path
+
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from core.models import ActivityLog, BulkUploadRequest
+from accounts.models import User
+from core.models import ActivityLog, AttendanceRecord, BulkUploadRequest
+
+
+def call_local_llm(prompt: str, model: str = "llama3"):
+    """
+    Invoca el LLM local de Ollama y devuelve el texto de respuesta.
+    Requiere que el servicio Ollama esté corriendo en localhost:11434.
+    """
+    import requests  # lazy import
+
+    resp = requests.post(
+        "http://localhost:11434/api/generate",
+        json={"model": model, "prompt": prompt, "stream": False},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("response", "")
+
+
+def _read_rows(file_path: Path):
+    ext = file_path.suffix.lower()
+    if ext in {".csv", ".txt"}:
+        with file_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            return list(reader)
+    if ext in {".xlsx", ".xls"}:
+        try:
+            import openpyxl  # type: ignore
+        except ImportError:
+            raise RuntimeError("Falta instalar openpyxl para leer planillas Excel.")
+        wb = openpyxl.load_workbook(file_path, read_only=True)
+        ws = wb.active
+        headers = [str(c.value).strip() for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        rows = []
+        for row in ws.iter_rows(min_row=2):
+            rows.append({headers[i]: (row[i].value if i < len(headers) else None) for i in range(len(headers))})
+        return rows
+    raise RuntimeError(f"Formato no soportado: {ext}")
+
+
+def _map_status(value: str):
+    if not value:
+        return AttendanceRecord.Status.PRESENT
+    v = str(value).strip().lower()
+    if v in {"p", "presente", "present"}:
+        return AttendanceRecord.Status.PRESENT
+    if v in {"a", "ausente", "absent"}:
+        return AttendanceRecord.Status.ABSENT
+    if v in {"j", "justificada", "justified"}:
+        return AttendanceRecord.Status.JUSTIFIED
+    if v in {"t", "tarde", "late"}:
+        return AttendanceRecord.Status.LATE
+    return AttendanceRecord.Status.PRESENT
+
+
+def _rows_from_llm(text: str):
+    """
+    Usa el LLM local para normalizar a una lista de dicts con campos
+    dni, email, status, comentario. Devuelve [] en caso de error.
+    """
+    prompt = (
+        "Devuelve un JSON array con objetos {dni,email,status,comentario}. "
+        "status usa P (presente), A (ausente), J (justificada), T (tarde). "
+        "Si falta email o dni, deja \"\". Texto de origen:\n\n"
+        f"{text}"
+    )
+    try:
+        response = call_local_llm(prompt)
+        return json.loads(response)
+    except Exception:
+        return []
+
+
+def _extract_text(file_path: Path) -> str:
+    """
+    Intenta extraer texto vía OCR para PDF/imagenes con pdf2image + pytesseract.
+    Devuelve "" si no se puede.
+    """
+    try:
+        import pytesseract  # type: ignore
+        from pdf2image import convert_from_path  # type: ignore
+    except ImportError:
+        return ""
+
+    ext = file_path.suffix.lower()
+    images = []
+    try:
+        if ext == ".pdf":
+            images = convert_from_path(str(file_path))
+        elif ext in {".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
+            from PIL import Image  # type: ignore
+            images = [Image.open(file_path)]
+    except Exception:
+        return ""
+
+    texts = []
+    for img in images:
+        try:
+            texts.append(pytesseract.image_to_string(img))
+        except Exception:
+            continue
+    return "\n".join(texts).strip()
+
+
+def _process_attendance(upload_request: BulkUploadRequest, rows):
+    section = upload_request.section
+    log_lines = []
+    session = section.sessions.order_by("-date").first()
+    if not session:
+        return ["La comision no tiene clases generadas; no se aplico asistencia."]
+    for row in rows:
+        dni = (row.get("dni") or row.get("DNI") or "").strip()
+        email = (row.get("email") or row.get("Email") or "").strip()
+        status_val = _map_status(row.get("status") or row.get("estado") or row.get("asistencia"))
+        comment = row.get("comentario") or row.get("comment") or ""
+        student_qs = None
+        if dni:
+            student_qs = User.objects.filter(dni=dni)
+        elif email:
+            student_qs = User.objects.filter(email__iexact=email)
+        student = student_qs.first() if student_qs else None
+        if not student:
+            log_lines.append(f"No se encontro estudiante para la fila (DNI/email={dni or email}).")
+            continue
+        AttendanceRecord.objects.update_or_create(
+            session=session,
+            student=student,
+            defaults={
+                "section": section,
+                "status": status_val,
+                "comment": comment,
+                "recorded_by": upload_request.uploaded_by,
+            },
+        )
+    return log_lines
+
+
+def _process_enrollment(upload_request: BulkUploadRequest, rows):
+    section = upload_request.section
+    log_lines = []
+    for row in rows:
+        dni = (row.get("dni") or row.get("DNI") or "").strip()
+        email = (row.get("email") or row.get("Email") or "").strip()
+        student_qs = None
+        if dni:
+            student_qs = User.objects.filter(dni=dni)
+        elif email:
+            student_qs = User.objects.filter(email__iexact=email)
+        student = student_qs.first() if student_qs else None
+        if not student:
+            log_lines.append(f"No se encontro estudiante para la fila (DNI/email={dni or email}).")
+            continue
+        section.students.add(student)
+    return log_lines
+
+
+def process_upload(upload_request: BulkUploadRequest):
+    file_path = Path(upload_request.file.path)
+    try:
+        rows = _read_rows(file_path)
+    except Exception as exc:
+        # Fallback: OCR + LLM
+        raw_text = _extract_text(file_path)
+        if not raw_text:
+            try:
+                raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                raw_text = ""
+        rows = _rows_from_llm(raw_text)
+        if not rows:
+            raise RuntimeError(f"No se pudo leer la planilla ni mapear con LLM/OCR: {exc}")
+
+    def _has_keys(rs):
+        return any(isinstance(r, dict) and (r.get("dni") or r.get("email")) for r in rs)
+
+    if not _has_keys(rows):
+        try:
+            sample = json.dumps(rows[:5], ensure_ascii=False)
+        except Exception:
+            sample = str(rows[:5])
+        rows = _rows_from_llm(sample)
+        if not _has_keys(rows):
+            raise RuntimeError("No se pudieron mapear columnas a dni/email con el LLM.")
+
+    log_lines = []
+    if upload_request.kind == BulkUploadRequest.Kind.ATTENDANCE:
+        log_lines = _process_attendance(upload_request, rows)
+    elif upload_request.kind == BulkUploadRequest.Kind.ENROLLMENT:
+        log_lines = _process_enrollment(upload_request, rows)
+    else:
+        log_lines.append("Tipo de carga no implementado en el stub actual.")
+    upload_request.status = BulkUploadRequest.Status.COMPLETED
+    upload_request.processed_at = timezone.now()
+    upload_request.result_log = "\n".join(log_lines)
+    upload_request.save(update_fields=["status", "processed_at", "result_log"])
+    ActivityLog.objects.create(
+        message=f"Procesada planilla de {upload_request.get_kind_display()} para {upload_request.section}.",
+    )
 
 
 def enqueue_ai_processing(upload_request: BulkUploadRequest):
     """
-    Placeholder para el pipeline de IA.
-    Por ahora solo marca el registro como \"en procesamiento\" y registra una notificación.
+    Procesamiento basico con hook para IA. Si ocurre un error, marca FAILED.
+    Reemplaza esta funcion para integrar un servicio externo de IA/ML.
     """
     upload_request.status = BulkUploadRequest.Status.PROCESSING
-    upload_request.notes = upload_request.notes or ""
-    upload_request.notes += (
-        "\n" if upload_request.notes else ""
-    ) + str(_("Procesamiento automático pendiente de integración con el servicio de IA."))
-    upload_request.processed_at = timezone.now()
-    upload_request.save(update_fields=["status", "notes", "processed_at"])
-
-    ActivityLog.objects.create(
-        message=_(
-            f"Se recibió una planilla de {upload_request.get_kind_display()} para {upload_request.section}."
+    upload_request.save(update_fields=["status"])
+    try:
+        process_upload(upload_request)
+    except Exception as exc:  # noqa: BLE001
+        upload_request.status = BulkUploadRequest.Status.FAILED
+        upload_request.processed_at = timezone.now()
+        upload_request.result_log = f"Error de procesamiento: {exc}"
+        upload_request.save(update_fields=["status", "processed_at", "result_log"])
+        ActivityLog.objects.create(
+            message=f"Error al procesar planilla de {upload_request.get_kind_display()} para {upload_request.section}: {exc}"
         )
-    )

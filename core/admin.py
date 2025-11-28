@@ -8,6 +8,7 @@ from .models import (
     BuildingFloor,
     NewsAndEvents,
     Room,
+    RoomBlock,
     SectionSession,
     Semester,
     Session,
@@ -23,6 +24,7 @@ admin.site.register(Session)
 admin.site.register(NewsAndEvents, NewsAndEventsAdmin)
 admin.site.register(BuildingFloor)
 admin.site.register(Room)
+admin.site.register(RoomBlock)
 admin.site.register(SectionSession)
 admin.site.register(AttendanceRecord)
 admin.site.register(BulkUploadRequest)

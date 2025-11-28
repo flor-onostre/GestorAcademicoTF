@@ -297,6 +297,33 @@ class Room(models.Model):
         return f"{self.code} ({self.get_room_type_display()})"
 
 
+class RoomBlock(models.Model):
+    room = models.ForeignKey(
+        Room, on_delete=models.CASCADE, related_name="blocks", verbose_name=_("Espacio")
+    )
+    start_date = models.DateField(verbose_name=_("Fecha desde"))
+    end_date = models.DateField(verbose_name=_("Fecha hasta"))
+    start_time = models.TimeField(null=True, blank=True, verbose_name=_("Hora inicio"))
+    end_time = models.TimeField(null=True, blank=True, verbose_name=_("Hora fin"))
+    reason = models.CharField(max_length=255, blank=True, verbose_name=_("Motivo"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="room_blocks_created",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Bloqueo de espacio")
+        verbose_name_plural = _("Bloqueos de espacios")
+        ordering = ("-start_date", "-start_time")
+
+    def __str__(self):
+        return f"{self.room} bloqueada del {self.start_date} al {self.end_date}"
+
+
 # ==============================
 # Bitacora simple
 # ==============================
@@ -505,6 +532,8 @@ class BulkUploadRequest(models.Model):
         default=Status.RECEIVED,
         help_text=_("Estado de procesamiento de la carga."),
     )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    result_log = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

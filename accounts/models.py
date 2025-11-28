@@ -174,7 +174,10 @@ class User(AbstractUser):
         required_fields = self.ROLE_REQUIRED_FIELDS.get(self.role, [])
         errors = {}
         for field in required_fields:
-            value = getattr(self, field)
+            if field == "programs":
+                # Los programas se gestionan en el perfil Student, no en User
+                continue
+            value = getattr(self, field, None)
             if not value:
                 errors[field] = _("Campo obligatorio para el rol seleccionado.")
         if errors:
@@ -245,7 +248,7 @@ class Student(models.Model):
 
     def save(self, *args, **kwargs):
         # Si no hay programa principal pero hay lista de programas, tomar el primero
-        if not self.program_id:
+        if not self.program_id and self.pk:
             first_program = self.programs.order_by("id").first()
             if first_program:
                 self.program = first_program

@@ -27,6 +27,7 @@
         {% url 'quiz_progress' as qpr %} {% url 'quiz_marking' as qce %} {% url 'user_course_list' as ucl %}
         {% url 'course_section_list' as section_list_url %} {% url 'attendance_dashboard' as attendance_dashboard_url %}
         {% url 'student_list' as student_list_url %} {% url 'room_list' as room_list_url %}
+        {% url 'room_block_list' as room_block_list_url %}
 
         <ul>
             {% if request.user.is_superuser %}
@@ -76,6 +77,9 @@
             </li>
             <li class="{% if request.path == room_list_url %}active{% endif %}">
                 <a href="{{ room_list_url }}"><i class="fas fa-building"></i>{% trans 'Pisos y espacios' %}</a>
+            </li>
+            <li class="{% if request.path == room_block_list_url %}active{% endif %}">
+                <a href="{{ room_block_list_url }}"><i class="fas fa-ban"></i>{% trans 'Bloqueos de espacios' %}</a>
             </li>
             {% endif %}
             {% if request.user.role == 'BEDEL' or request.user.is_superuser %}

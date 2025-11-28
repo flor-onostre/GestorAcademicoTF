@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<h4 class="mb-3">{% trans "Eliminar bloqueo" %}</h4>
+<div class="alert alert-warning">
+    {% trans "¿Confirmás eliminar este bloqueo?" %}<br>
+    <strong>{{ block.room.code }}</strong> - {{ block.start_date }} / {{ block.end_date }}
+</div>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">{% trans "Eliminar" %}</button>
+    <a class="btn btn-light" href="{% url 'room_block_list' %}">{% trans "Cancelar" %}</a>
+</form>
+{% endblock content %}
