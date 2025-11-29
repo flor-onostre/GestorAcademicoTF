@@ -220,6 +220,13 @@ class StudentManager(models.Manager):
 
 class Student(models.Model):
     student = models.OneToOneField(User, on_delete=models.CASCADE)
+    legajo = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name=_("Legajo"),
+        help_text=_("Número de legajo del estudiante (opcional)."),
+    )
     level = models.CharField(max_length=25, choices=LEVEL, null=True)
     program = models.ForeignKey(Program, on_delete=models.CASCADE, null=True)
     programs = models.ManyToManyField(

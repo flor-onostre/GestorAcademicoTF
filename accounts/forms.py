@@ -288,6 +288,11 @@ class StudentAddForm(UserCreationForm):
         label="Carreras",
         required=True,
     )
+    legajo = forms.CharField(
+        required=False,
+        label="Legajo",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
     locality = forms.ChoiceField(
         choices=BA_LOCALITIES,
         label="Localidad",
@@ -318,6 +323,7 @@ class StudentAddForm(UserCreationForm):
             "email",
             "phone",
             "emergency_contact",
+            "legajo",
             "nationality",
             "locality",
             "address",
@@ -335,6 +341,7 @@ class StudentAddForm(UserCreationForm):
             "email": forms.TextInput(attrs={"class": "form-control", "type": "email"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
             "emergency_contact": forms.TextInput(attrs={"class": "form-control"}),
+            "legajo": forms.TextInput(attrs={"class": "form-control"}),
             "nationality": forms.Select(
                 attrs={"class": "browser-default custom-select form-control"}
             ),
@@ -356,6 +363,7 @@ class StudentAddForm(UserCreationForm):
             "email": "Correo electrónico",
             "phone": "Teléfono",
             "emergency_contact": "Contacto de emergencia",
+            "legajo": "Legajo",
             "nationality": "Nacionalidad",
             "locality": "Localidad",
             "address": "Dirección",
@@ -385,6 +393,7 @@ class StudentAddForm(UserCreationForm):
             "first_name",
             "last_name",
             "dni",
+            "legajo",
             "gender",
             "email",
             "phone",
@@ -412,6 +421,7 @@ class StudentAddForm(UserCreationForm):
             programs = list(self.cleaned_data.get("programs") or [])
             primary = programs[0] if programs else None
             student, _ = Student.objects.get_or_create(student=user)
+            student.legajo = self.cleaned_data.get("legajo") or student.legajo
             if primary:
                 student.program = primary
             student.save()
@@ -426,6 +436,11 @@ class StudentUpdateForm(UserChangeForm):
         widget=forms.CheckboxSelectMultiple,
         label="Carreras",
         required=False,
+    )
+    legajo = forms.CharField(
+        required=False,
+        label="Legajo",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
     )
     nationality = forms.ChoiceField(
         choices=[("", "Seleccione una nacionalidad")],
@@ -449,6 +464,7 @@ class StudentUpdateForm(UserChangeForm):
             "nationality",
             "dni",
             "emergency_contact",
+            "legajo",
             "is_role_active",
             "programs",
         ]
@@ -464,6 +480,7 @@ class StudentUpdateForm(UserChangeForm):
             "last_name": forms.TextInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),
+            "legajo": forms.TextInput(attrs={"class": "form-control"}),
             "locality": forms.Select(
                 choices=BA_LOCALITIES,
                 attrs={
@@ -490,6 +507,7 @@ class StudentUpdateForm(UserChangeForm):
             "nationality": "Nacionalidad",
             "dni": "DNI",
             "emergency_contact": "Contacto de emergencia",
+            "legajo": "Legajo",
             "is_role_active": "Activo",
             "programs": "Carreras",
         }
@@ -507,6 +525,7 @@ class StudentUpdateForm(UserChangeForm):
             try:
                 student = Student.objects.get(student=self.instance)
                 self.fields["programs"].initial = student.programs.all()
+                self.fields["legajo"].initial = student.legajo
             except Student.DoesNotExist:
                 pass
 
@@ -515,6 +534,7 @@ class StudentUpdateForm(UserChangeForm):
         if commit:
             user.save()
             student, _ = Student.objects.get_or_create(student=user)
+            student.legajo = self.cleaned_data.get("legajo") or student.legajo
             programs = list(self.cleaned_data.get("programs") or [])
             if programs:
                 student.program = programs[0]
@@ -522,6 +542,7 @@ class StudentUpdateForm(UserChangeForm):
                 student.programs.set(programs)
             else:
                 student.programs.clear()
+            student.save()
         return user
 
 

@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -12,7 +13,7 @@ from core.models import ActivityLog, AttendanceRecord, BulkUploadRequest
 def call_local_llm(prompt: str, model: str = "llama3"):
     """
     Invoca el LLM local de Ollama y devuelve el texto de respuesta.
-    Requiere que el servicio Ollama esté corriendo en localhost:11434.
+    Requiere que el servicio Ollama est? corriendo en localhost:11434.
     """
     import requests  # lazy import
 
@@ -24,6 +25,25 @@ def call_local_llm(prompt: str, model: str = "llama3"):
     resp.raise_for_status()
     data = resp.json()
     return data.get("response", "")
+
+
+def _parse_llm_json(text: str):
+    """
+    Acepta respuestas con o sin fences ```json ... ``` y devuelve la carga JSON.
+    Devuelve [] si no puede parsear.
+    """
+    if not text:
+        return []
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        # Elimina fences tipo ```json ... ```
+        cleaned = cleaned.strip("`")
+        if cleaned.startswith("json"):
+            cleaned = cleaned[4:]
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        return []
 
 
 def _read_rows(file_path: Path):
@@ -73,16 +93,36 @@ def _rows_from_llm(text: str):
         "Si falta email o dni, deja \"\". Texto de origen:\n\n"
         f"{text}"
     )
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
+    if api_key:
+        try:
+            import google.generativeai as genai  # type: ignore
+
+            genai.configure(api_key=api_key)
+            model_name = getattr(settings, "GEMINI_MODEL", "models/gemini-2.5-flash")
+            model = genai.GenerativeModel(model_name)
+            resp = model.generate_content(
+                prompt,
+                safety_settings=None,
+                generation_config={"response_mime_type": "application/json"},
+            )
+            payload = getattr(resp, "text", None)
+            if not payload and getattr(resp, "candidates", None):
+                first = resp.candidates[0].content.parts[0]
+                payload = getattr(first, "text", None) or getattr(first, "data", None)
+            return _parse_llm_json(payload or "")
+        except Exception:
+            pass
     try:
         response = call_local_llm(prompt)
-        return json.loads(response)
+        return _parse_llm_json(response)
     except Exception:
         return []
 
 
 def _extract_text(file_path: Path) -> str:
     """
-    Intenta extraer texto vía OCR para PDF/imagenes con pdf2image + pytesseract.
+    Intenta extraer texto v?a OCR para PDF/imagenes con pdf2image + pytesseract.
     Devuelve "" si no se puede.
     """
     try:
@@ -224,3 +264,6 @@ def enqueue_ai_processing(upload_request: BulkUploadRequest):
         ActivityLog.objects.create(
             message=f"Error al procesar planilla de {upload_request.get_kind_display()} para {upload_request.section}: {exc}"
         )
+
+
+

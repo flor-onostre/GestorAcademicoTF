@@ -1,5 +1,7 @@
 ﻿import math
 from datetime import timedelta, datetime
+import tempfile
+from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -30,7 +32,12 @@ from core.models import (
     SectionSession,
     Semester,
 )
-from core.services.ai_ingestion import enqueue_ai_processing
+from core.services.ai_ingestion import (
+    _extract_text,
+    _read_rows,
+    _rows_from_llm,
+    enqueue_ai_processing,
+)
 from core.notifications import (
     notify_absence,
     notify_teacher_missing_attendance,
@@ -228,7 +235,7 @@ def _room_available(room, section):
             if block.start_time < sess.end_time and block.end_time > sess.start_time:
                 return False
 
-    # Conflictos con otras comisiones en la misma sala
+    # Conflictos con otras comisiónes en la misma sala
     windows = _time_windows(section)
     others = CourseSection.objects.filter(room=room).exclude(pk=section.pk)
     for other in others:
@@ -560,7 +567,7 @@ def course_section_list(request):
     if selected_course:
         sections = sections.filter(course__id=selected_course)
     context = {
-        "title": "Comisiones",
+        "title": "comisiónes",
         "sections": sections,
         "programs": programs.order_by("title"),
         "selected_program": selected_program,
@@ -1159,7 +1166,7 @@ def user_course_list(request):
         return render(
             request,
             "course/user_course_list.html",
-            {"sections": sections, "title": "Mis comisiones"},
+            {"sections": sections, "title": "Mis comisiónes"},
         )
 
     if request.user.is_student:
@@ -1175,28 +1182,130 @@ def user_course_list(request):
     return render(request, "course/user_course_list.html")
 
 
+
 @login_required
 def section_enrollment(request, pk):
     section = get_object_or_404(CourseSection, pk=pk)
     ensure_section_access(request.user, section)
+    program_ids = list(section.course.programs.values_list("id", flat=True))
+    base_students = (
+        User.objects.filter(role=User.Roles.STUDENT, student__programs__id__in=program_ids)
+        .distinct()
+        .order_by("first_name", "last_name")
+    )
+    search = (request.GET.get("q") or "").strip()
+    filtered_students = base_students
+    if search:
+        filtered_students = filtered_students.filter(
+            Q(dni__icontains=search)
+            | Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+        )
+
+    preselected_ids = list(section.students.values_list("id", flat=True))
+    upload_form = SectionEnrollmentUploadForm()
+    matched_info = {"matched": 0, "not_found": []}
+
     if request.method == "POST":
-        form = SectionEnrollmentForm(request.POST, section=section)
-        if form.is_valid():
-            students = form.cleaned_data.get("students") or []
-            section.students.set(students)
-            messages.success(request, "Alumnos actualizados para la comisión.")
-            return redirect("section_enrollment", pk=section.pk)
-        messages.error(request, "Revisa los errores del formulario.")
-    else:
-        form = SectionEnrollmentForm(section=section)
+        action = request.POST.get("action") or "save"
+        if action == "upload":
+            upload_form = SectionEnrollmentUploadForm(request.POST, request.FILES)
+            if upload_form.is_valid():
+                uploaded = upload_form.cleaned_data["file"]
+                tmp_path = None
+                try:
+                    suffix = Path(uploaded.name).suffix or ".dat"
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    for chunk in uploaded.chunks():
+                        tmp.write(chunk)
+                    tmp.close()
+                    tmp_path = Path(tmp.name)
+                    try:
+                        rows = _read_rows(tmp_path)
+                    except Exception:
+                        raw_text = _extract_text(tmp_path) or ""
+                        if not raw_text:
+                            try:
+                                raw_text = tmp_path.read_text(encoding="utf-8", errors="ignore")
+                            except Exception:
+                                raw_text = ""
+                        rows = _rows_from_llm(raw_text)
+
+                    matched = []
+                    not_found = []
+                    for row in rows or []:
+                        if not isinstance(row, dict):
+                            continue
+                        dni = (row.get("dni") or row.get("DNI") or "").strip()
+                        email = (row.get("email") or row.get("Email") or "").strip()
+                        first = (row.get("first_name") or row.get("nombre") or "").strip()
+                        last = (row.get("last_name") or row.get("apellido") or "").strip()
+                        full = (row.get("name") or row.get("nombre_completo") or "").strip()
+                        if full and (not first or not last):
+                            parts = full.split()
+                            if len(parts) >= 2:
+                                first = parts[0]
+                                last = " ".join(parts[1:])
+                        student = None
+                        if dni:
+                            student = base_students.filter(dni=dni).first()
+                        if not student and email:
+                            student = base_students.filter(email__iexact=email).first()
+                        if not student and first and last:
+                            student = (
+                                base_students.filter(
+                                    first_name__iexact=first, last_name__iexact=last
+                                ).first()
+                            )
+                        if student:
+                            matched.append(student.id)
+                        else:
+                            not_found.append(dni or email or full or f"{first} {last}".strip() or str(row)[:50])
+                    preselected_ids = list(set(preselected_ids + matched))
+                    matched_info = {"matched": len(matched), "not_found": not_found}
+                    messages.info(
+                        request,
+                        f"Se preseleccionaron {len(matched)} alumnos desde el archivo.",
+                    )
+                finally:
+                    if tmp_path and tmp_path.exists():
+                        try:
+                            tmp_path.unlink()
+                        except Exception:
+                            pass
+            else:
+                messages.error(request, "No se pudo procesar el archivo. Revisa el formato.")
+        else:
+            form = SectionEnrollmentForm(
+                request.POST, section=section, available_students=filtered_students
+            )
+            if form.is_valid():
+                students = form.cleaned_data.get("students") or []
+                section.students.set(students)
+                messages.success(request, "Alumnos actualizados para la comisión.")
+                return redirect("course_section_list")
+            messages.error(request, "Revisa los errores del formulario.")
+
+    form = SectionEnrollmentForm(
+        section=section,
+        available_students=filtered_students,
+        initial={"students": preselected_ids, "search": search},
+    )
+    form.fields["students"].initial = preselected_ids
     return render(
         request,
         "course/section_enrollment.html",
         {
             "form": form,
+            "upload_form": upload_form,
             "section": section,
             "title": "Asignar alumnos",
+            "search": search,
+            "matched_info": matched_info,
         },
     )
+
+
+
 
 

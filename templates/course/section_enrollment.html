@@ -4,15 +4,34 @@
 {% block content %}
 <h4 class="mb-3">{% trans "Asignar alumnos a la comisión" %}</h4>
 <p class="text-muted">
-    {{ section.course.title }} â€” {{ section.turn.name }} â€” {{ section.semester.get_semester_display }} ({{ section.semester.session.session }})
+    {{ section.course.title }} — {{ section.turn.name }} — {{ section.semester.get_semester_display }} ({{ section.semester.session.session }})
 </p>
-<div class="card">
+
+<form method="get" class="mb-3 row g-2 align-items-end">
+    <div class="col-sm-6 col-md-4">
+        <label class="form-label" for="search">{% trans "Buscar (DNI, nombre o apellido)" %}</label>
+        <input id="search" type="text" name="q" class="form-control" placeholder="DNI, nombre o apellido" value="{{ search }}">
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <button type="submit" class="btn btn-outline-secondary mt-3 mt-sm-0">{% trans "Filtrar" %}</button>
+        <a href="?" class="btn btn-link mt-3 mt-sm-0">{% trans "Limpiar" %}</a>
+    </div>
+</form>
+
+<div class="card mb-3">
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
+            <input type="hidden" name="action" value="save">
             <div class="mb-3">
                 <label class="form-label">{{ form.students.label }}</label>
-                {{ form.students }}
+                <div class="border rounded p-2" style="max-height: 320px; overflow-y: auto;">
+                    {% if form.students %}
+                        {{ form.students }}
+                    {% else %}
+                        <p class="text-muted small mb-0">{% trans "No hay alumnos disponibles para esta carrera." %}</p>
+                    {% endif %}
+                </div>
                 {% if form.students.help_text %}
                 <small class="form-text text-muted">{{ form.students.help_text }}</small>
                 {% endif %}
@@ -27,7 +46,35 @@
         </form>
     </div>
 </div>
+
+<div class="card">
+    <div class="card-body">
+        <h6 class="mb-2">{% trans "Subir archivo para preseleccionar" %}</h6>
+        <p class="text-muted small mb-2">{% trans "Admite CSV, XLSX o PDF con columnas DNI o email." %}</p>
+        <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            <div class="col-sm-8 col-md-6">
+                {{ upload_form.file }}
+                {% for error in upload_form.file.errors %}
+                <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <button type="submit" class="btn btn-outline-primary">{% trans "Subir y marcar" %}</button>
+            </div>
+        </form>
+        {% if matched_info.matched %}
+            <div class="alert alert-success mt-3 mb-1">
+                {% blocktrans %}Se preseleccionaron {{ matched_info.matched }} alumnos desde el archivo.{% endblocktrans %}
+            </div>
+        {% endif %}
+        {% if matched_info.not_found %}
+            <div class="alert alert-warning mt-2">
+                <div class="fw-bold">{% trans "No se encontraron:" %}</div>
+                <div class="small">{{ matched_info.not_found|join:', ' }}</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
-
-
-
