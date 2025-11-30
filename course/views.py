@@ -1,4 +1,4 @@
-﻿import math
+import math
 from datetime import timedelta, datetime
 import tempfile
 from pathlib import Path
@@ -1238,21 +1238,51 @@ def section_enrollment(request, pk):
                     try:
                         rows = _read_rows(tmp_path)
                     except Exception:
-                        raw_text = _extract_text(tmp_path) or ""
-                        if not raw_text:
-                            try:
-                                raw_text = tmp_path.read_text(encoding="utf-8", errors="ignore")
-                            except Exception:
-                                raw_text = ""
-                        rows = _rows_from_llm(raw_text)
+                        # Solo soportamos CSV/XLSX para matrícula masiva
+                        rows = []
+                    if rows and isinstance(rows, list) and rows and isinstance(rows[0], dict):
+                        headers = list(rows[0].keys())
+                        header_lower = [str(h).lower() for h in headers]
+                        has_dni = any("dni" in h or "document" in h for h in header_lower)
+                        has_email = any("mail" in h or "email" in h or "correo" in h for h in header_lower)
+                        has_legajo = any("legajo" in h or "codigo" in h or "código" in h for h in header_lower)
+                        # Si no tenemos identificadores claros, pedir al LLM que normalice columnas
+                        if not (has_dni or has_email or has_legajo):
+                            from core.services.ai_ingestion import _rows_from_llm_students
+                            sample_rows = "\n".join([str(r) for r in rows[:5]])
+                            rows = _rows_from_llm_students(headers=", ".join(map(str, headers)), sample_rows=sample_rows)
 
                     matched = []
                     not_found = []
                     for row in rows or []:
                         if not isinstance(row, dict):
                             continue
-                        dni = (row.get("dni") or row.get("DNI") or "").strip()
-                        email = (row.get("email") or row.get("Email") or "").strip()
+                        lower_map = {str(k).lower(): v for k, v in row.items()}
+                        legajo = (
+                            row.get("legajo")
+                            or row.get("Legajo")
+                            or row.get("Codigo")
+                            or row.get("Código")
+                            or lower_map.get("legajo")
+                            or lower_map.get("codigo")
+                            or ""
+                        )
+                        if isinstance(legajo, (int, float)):
+                            legajo = str(int(legajo))
+                        legajo = str(legajo).strip()
+
+                        raw_dni = row.get("dni") or row.get("DNI") or lower_map.get("dni") or ""
+                        if isinstance(raw_dni, (int, float)):
+                            raw_dni = str(int(raw_dni))
+                        dni = str(raw_dni).strip()
+                        email = (
+                            row.get("email")
+                            or row.get("Email")
+                            or row.get("Correo")
+                            or lower_map.get("email")
+                            or lower_map.get("correo")
+                            or ""
+                        )
                         first = (row.get("first_name") or row.get("nombre") or "").strip()
                         last = (row.get("last_name") or row.get("apellido") or "").strip()
                         full = (row.get("name") or row.get("nombre_completo") or "").strip()
@@ -1266,6 +1296,8 @@ def section_enrollment(request, pk):
                             student = base_students.filter(dni=dni).first()
                         if not student and email:
                             student = base_students.filter(email__iexact=email).first()
+                        if not student and legajo:
+                            student = base_students.filter(student__legajo=legajo).first()
                         if not student and first and last:
                             student = (
                                 base_students.filter(
@@ -1275,7 +1307,9 @@ def section_enrollment(request, pk):
                         if student:
                             matched.append(student.id)
                         else:
-                            not_found.append(dni or email or full or f"{first} {last}".strip() or str(row)[:50])
+                            not_found.append(
+                                dni or email or legajo or full or f"{first} {last}".strip() or str(row)[:50]
+                            )
                     preselected_ids = list(set(preselected_ids + matched))
                     matched_info = {"matched": len(matched), "not_found": not_found}
                     messages.info(
