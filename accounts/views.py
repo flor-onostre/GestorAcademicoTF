@@ -1,4 +1,4 @@
-from django.contrib import messages
+﻿from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
@@ -17,11 +17,14 @@ from accounts.forms import (
     StaffUpdateForm,
     StudentAddForm,
     StudentUpdateForm,
+    StudentUploadForm,
 )
 from accounts.models import Student, User
 from accounts.utils import send_new_account_email
 from core.models import Semester, Session
 from course.models import Course
+from course.models import Program
+from core.services.ai_ingestion import _read_rows, _extract_text, _rows_from_llm
 from result.models import TakenCourse
 
 try:
@@ -38,7 +41,7 @@ except ImportError:  # pragma: no cover
 def render_to_pdf(template_name, context):
     """Render a given template to PDF format."""
     if pisa is None:
-        return HttpResponse("Generación de PDF no disponible en este entorno.")
+        return HttpResponse("GeneraciÃ³n de PDF no disponible en este entorno.")
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'filename="profile.pdf"'
     template = render_to_string(template_name, context)
@@ -64,7 +67,7 @@ def register(request):
         form = StudentAddForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, "La cuenta se creó correctamente.")
+            messages.success(request, "La cuenta se creÃ³ correctamente.")
             return redirect("login")
         messages.error(
             request, "Hay campos incorrectos. Completalos correctamente."
@@ -122,7 +125,7 @@ def profile_update(request):
             form.save()
             messages.success(request, "Perfil actualizado correctamente.")
             return redirect("profile")
-        messages.error(request, "Corregí los errores indicados abajo.")
+        messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = ProfileUpdateForm(instance=request.user)
     return render(
@@ -205,11 +208,11 @@ def staff_add_view(request):
                 send_new_account_email(staff, staff.dni)
             messages.success(
                 request,
-                f"Se creó la cuenta de {full_name}. "
-                f"En minutos se enviarán las credenciales a {email}.",
+                f"Se creÃ³ la cuenta de {full_name}. "
+                f"En minutos se enviarÃ¡n las credenciales a {email}.",
             )
             return redirect("lecturer_list")
-        messages.error(request, "Corregí los errores indicados abajo.")
+        messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = StaffAddForm()
     return render(request, "accounts/add_staff.html", {"form": form, "title": "Agregar docente"})
@@ -228,7 +231,7 @@ def edit_staff(request, pk):
                 request, f"Docente {full_name} actualizado correctamente."
             )
             return redirect("lecturer_list")
-        messages.error(request, "Corregí los errores indicados abajo.")
+        messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = StaffUpdateForm(instance=staff_user)
     return render(
@@ -262,7 +265,7 @@ def render_lecturer_pdf_list(request):
     template = get_template(template_path)
     html = template.render(context)
     if pisa is None:
-        return HttpResponse("Generación de PDF no disponible.")
+        return HttpResponse("GeneraciÃ³n de PDF no disponible.")
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
         return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
@@ -297,11 +300,11 @@ def student_add_view(request):
                 send_new_account_email(student, student.dni)
             messages.success(
                 request,
-                f"Se creó la cuenta de {full_name}. "
-                f"En minutos se enviarán las credenciales a {email}.",
+                f"Se creÃ³ la cuenta de {full_name}. "
+                f"En minutos se enviarÃ¡n las credenciales a {email}.",
             )
             return redirect("student_list")
-        messages.error(request, "Corregí los errores indicados abajo.")
+        messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = StudentAddForm()
     return render(
@@ -320,7 +323,7 @@ def edit_student(request, pk):
             full_name = student_user.get_full_name
             messages.success(request, f"Estudiante {full_name} actualizado correctamente.")
             return redirect("student_list")
-        messages.error(request, "Corregí el error indicado abajo.")
+        messages.error(request, "CorregÃ­ el error indicado abajo.")
     else:
         form = StudentUpdateForm(instance=student_user)
     return render(
@@ -352,7 +355,7 @@ def render_student_pdf_list(request):
     template = get_template(template_path)
     html = template.render(context)
     if pisa is None:
-        return HttpResponse("Generación de PDF no disponible.")
+        return HttpResponse("GeneraciÃ³n de PDF no disponible.")
     pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
         return HttpResponse(f"Se produjeron errores al generar el PDF <pre>{html}</pre>")
@@ -381,7 +384,7 @@ def edit_student_program(request, pk):
             full_name = user.get_full_name
             messages.success(request, f"La carrera de {full_name} fue actualizada.")
             return redirect("profile_single", user_id=pk)
-        messages.error(request, "Corregí los errores indicados abajo.")
+        messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = ProgramUpdateForm(instance=student)
     return render(
@@ -406,10 +409,191 @@ def change_password(request):
                 user.must_change_password = False
                 user.save(update_fields=["must_change_password"])
             update_session_auth_hash(request, user)
-            messages.success(request, "La contraseña se actualizó correctamente.")
+            messages.success(request, "La contraseÃ±a se actualizÃ³ correctamente.")
             return redirect("home")
         else:
-            messages.error(request, "Corregí los errores indicados abajo.")
+            messages.error(request, "CorregÃ­ los errores indicados abajo.")
     else:
         form = PasswordChangeForm(user=request.user)
     return render(request, "setting/password_change.html", {"form": form})
+
+@login_required
+@admin_required
+def student_upload_view(request):
+    form = StudentUploadForm(request.POST or None, request.FILES or None)
+    created, skipped, errors = [], [], []
+    if request.method == "POST" and form.is_valid():
+        uploaded = form.cleaned_data["file"]
+        target_program = form.cleaned_data.get("program")
+        tmp_path = None
+        processed_rows = 0
+        try:
+            from tempfile import NamedTemporaryFile
+            from pathlib import Path
+            from core.services.ai_ingestion import _rows_from_llm_students
+            tmp = NamedTemporaryFile(delete=False, suffix=Path(uploaded.name).suffix or ".dat")
+            for chunk in uploaded.chunks():
+                tmp.write(chunk)
+            tmp.close()
+            tmp_path = Path(tmp.name)
+            try:
+                rows = _read_rows(tmp_path)
+            except Exception:
+                # Solo soportamos ahora CSV/XLSX; otros formatos no se procesan
+                rows = []
+            # Si no se detectan columnas útiles, pedir al LLM que mapée a campos de alumno
+            if rows and isinstance(rows, list) and rows and isinstance(rows[0], dict):
+                sample = rows[:5]
+                headers = list(sample[0].keys())
+                header_lower = [str(k).lower() for k in headers]
+                has_dni = any("dni" in k or "document" in k for k in header_lower)
+                has_mail = any("mail" in k or "email" in k or "correo" in k for k in header_lower)
+                needs_llm = not (has_dni and has_mail)
+                if needs_llm:
+                    rows = _rows_from_llm_students(
+                        headers=", ".join(map(str, headers)),
+                        sample_rows="\n".join([str(r) for r in sample]),
+                    )
+
+            if not rows:
+                errors.append("No se encontraron datos en el archivo. Verifica formato/encabezados.")
+
+            for row in rows or []:
+                if not isinstance(row, dict):
+                    continue
+                processed_rows += 1
+
+                # Heurísticas de detección de columnas
+                lower_map = {str(k).lower(): v for k, v in row.items()}
+                raw_dni = row.get("dni") or row.get("DNI") or lower_map.get("documento") or lower_map.get("doc") or ""
+                if isinstance(raw_dni, (int, float)):
+                    raw_dni = int(raw_dni)
+                dni = str(raw_dni).strip()
+                if dni.replace(".", "", 1).isdigit():
+                    try:
+                        dni = str(int(float(dni)))
+                    except Exception:
+                        dni = dni
+
+                # Nombre / Apellido
+                first = str(
+                    row.get("first_name")
+                    or row.get("nombre")
+                    or row.get("Nombre")
+                    or row.get("Nombres")
+                    or lower_map.get("nombre(s)")
+                    or lower_map.get("nombres")
+                    or ""
+                ).strip()
+                last = str(
+                    row.get("last_name")
+                    or row.get("apellido")
+                    or row.get("Apellido(s)")
+                    or row.get("Apellido")
+                    or lower_map.get("apellidos")
+                    or lower_map.get("apellido")
+                    or row.get("Apellidos")
+                    or ""
+                ).strip()
+
+                # Email: buscar en campos conocidos o cualquier valor con @
+                email = str(
+                    row.get("email")
+                    or row.get("Email")
+                    or row.get("Email_Falso")
+                    or row.get("Mail")
+                    or row.get("Correo")
+                    or lower_map.get("correo")
+                    or lower_map.get("mail")
+                    or ""
+                ).strip()
+                if not email:
+                    for val in row.values():
+                        if isinstance(val, str) and "@" in val:
+                            email = val.strip()
+                            break
+                # Normalizar email; si no es válido, usar uno placeholder
+                from django.core.validators import validate_email
+                from django.core.exceptions import ValidationError as DjangoValidationError
+                if not email:
+                    email = f"{dni}@nomail.invalid"
+                else:
+                    try:
+                        validate_email(email)
+                    except DjangoValidationError:
+                        email = f"{dni}@nomail.invalid"
+
+                # Legajo
+                legajo = str(
+                    row.get("legajo")
+                    or row.get("Codigo")
+                    or row.get("Código")
+                    or lower_map.get("codigo")
+                    or lower_map.get("id")
+                    or ""
+                ).strip() or None
+
+                # Faltantes obligatorios
+                if not dni or not first or not last:
+                    errors.append(f"Fila incompleta: {row}")
+                    continue
+
+                if User.objects.filter(dni=dni).exists():
+                    skipped.append(dni)
+                    continue
+
+                user = User(
+                    username=dni,
+                    dni=dni,
+                    first_name=first,
+                    last_name=last,
+                    email=email,
+                    role=User.Roles.STUDENT,
+                    is_student=True,
+                    must_change_password=True,
+                    is_active=True,
+                )
+                user.set_password(dni)
+                user.save()
+                student, _ = Student.objects.get_or_create(student=user)
+                student.legajo = legajo
+                if target_program:
+                    student.program = target_program
+                    student.save()
+                    student.programs.set([target_program])
+                else:
+                    student.save()
+                progs_txt = str(row.get("programas") or row.get("programs") or "").strip()
+                program_titles = [p.strip() for p in progs_txt.split(",") if p.strip()]
+                programs = Program.objects.filter(title__in=program_titles)
+                if programs and not target_program:
+                    student.program = programs.first()
+                    student.save()
+                    student.programs.set(programs)
+                student.save()
+                created.append(dni)
+        finally:
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+        if processed_rows == 0 and not errors:
+            errors.append("No se pudo interpretar el archivo. Asegúrate de que tenga encabezados (ej: DNI, Nombre, Apellido, Email).")
+        elif not created and not errors:
+            errors.append("No se pudo crear ningún alumno. Verifica que los DNI no estén ya cargados o ajusta los encabezados.")
+        if errors:
+            messages.error(
+                request,
+                f"Altas creadas: {len(created)}. Repetidos: {len(skipped)}. Errores: {len(errors)}.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Altas creadas: {len(created)}. Repetidos: {len(skipped)}. Errores: {len(errors)}.",
+            )
+    return render(
+        request,
+        "accounts/student_upload.html",
+        {"form": form, "created": created, "skipped": skipped, "errors": errors, "title": "Importar estudiantes"},
+    )

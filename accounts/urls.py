@@ -27,6 +27,7 @@ from .views import (
     register,
     render_lecturer_pdf_list,  # new
     render_student_pdf_list,  # new
+    student_upload_view,
 )
 
 # from .forms import EmailValidationOnForgotPassword
@@ -45,6 +46,7 @@ urlpatterns = [
     path("lecturers/<int:pk>/delete/", delete_staff, name="lecturer_delete"),
     path("students/", StudentListView.as_view(), name="student_list"),
     path("student/add/", student_add_view, name="add_student"),
+    path("students/upload/", student_upload_view, name="student_upload"),
     path("student/<int:pk>/edit/", edit_student, name="student_edit"),
     path("students/<int:pk>/delete/", delete_student, name="student_delete"),
     path(

@@ -48,11 +48,11 @@
                     <td>{{ program.university|default:_("Sin universidad") }} </td>
                     {% if request.user.is_superuser %}
                     <td>
-                        <div class="dropdown">
+                        <div class="dropdown" style="position: relative;">
                             <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                 <i class="fa fa-ellipsis-vertical"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end" style="overflow: visible;">
                               <li><a class="dropdown-item" href="{% url 'edit_program' pk=program.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Editar' %}</a></li>
                               <li><a class="dropdown-item text-danger" href="{% url 'program_delete' pk=program.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Eliminar' %}</a></li>
                             </ul>

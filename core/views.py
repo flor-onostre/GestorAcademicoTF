@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import models
@@ -707,3 +707,15 @@ def room_delete_view(request, pk):
         "core/room_confirm_delete.html",
         {"room": room},
     )
+
+@login_required
+def bulk_upload_retry(request, pk):
+    upload = get_object_or_404(BulkUploadRequest, pk=pk)
+    ensure_bedelia_access(request.user)
+    upload.status = BulkUploadRequest.Status.RECEIVED
+    upload.processed_at = None
+    upload.result_log = ''
+    upload.save(update_fields=["status","processed_at","result_log"])
+    enqueue_ai_processing(upload)
+    messages.info(request, "Reprocesamiento iniciado.")
+    return redirect("attendance_dashboard")

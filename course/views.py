@@ -115,26 +115,40 @@ def _section_students(section):
 def _regularity_status(section, student):
     from core.models import SectionSession, AttendanceRecord
 
-    total_sessions = SectionSession.objects.filter(
+    # Todas las sesiones planificadas de la comisión
+    total_planned = SectionSession.objects.filter(section=section).count()
+    past_sessions = SectionSession.objects.filter(
         section=section, date__lte=timezone.now()
     ).count()
-    if total_sessions == 0:
+
+    if total_planned == 0:
         return True, 0, 0
+
     present_count = AttendanceRecord.objects.filter(
         session__section=section,
         student=student,
         status__in=[AttendanceRecord.PRESENT, AttendanceRecord.JUSTIFIED],
     ).count()
-    required = section.attendance_required or section.program.min_passing_attendance
-    required = required or 0
-    percentage = (present_count / total_sessions) * 100
-    allowed_absences = max(
-        0,
-        total_sessions - math.ceil((required / 100) * total_sessions),
-    )
-    absences = total_sessions - present_count
-    remaining = max(0, allowed_absences - absences)
-    return percentage >= required, remaining, allowed_absences
+
+    required_pct = section.attendance_required or section.program.min_passing_attendance or 0
+    required_present = math.ceil((required_pct / 100) * total_planned)
+
+    # Faltas no justificadas hasta la fecha
+    absences_so_far = max(0, past_sessions - present_count)
+    allowed_absences = max(0, total_planned - required_present)
+
+    # Si ya se excedieron las faltas permitidas según todas las clases, queda irregular
+    if absences_so_far > allowed_absences:
+        return False, 0, allowed_absences
+
+    # Proyección: ¿aun asistiendo a todo lo que falta, llega al mínimo?
+    remaining_sessions = total_planned - past_sessions
+    max_possible_present = present_count + remaining_sessions
+    if max_possible_present < required_present:
+        return False, 0, allowed_absences
+
+    remaining_absences = max(0, allowed_absences - absences_so_far)
+    return True, remaining_absences, allowed_absences
 
 
 DAY_TO_WEEKDAY = {
@@ -757,7 +771,8 @@ def session_attendance_view(request, session_id):
                 "allowed_absences": allowed_absences,
             }
         )
-    student_rows.sort(key=lambda r: (r["is_regular"], r["student"].get_full_name()))
+    # Mostrar primero regulares; los no regulares al final
+    student_rows.sort(key=lambda r: (not r["is_regular"], r["student"].get_full_name()))
     pending_justifications = AttendanceJustification.objects.filter(
         attendance_record__session=session,
         status=AttendanceJustification.PENDING,
@@ -1309,3 +1324,20 @@ def section_enrollment(request, pk):
 
 
 
+
+@login_required
+def course_section_assign_room(request, pk):
+    section = get_object_or_404(CourseSection, pk=pk)
+    ensure_section_access(request.user, section)
+    previous_room = section.room
+    room = _auto_assign_room(section)
+    if room:
+        if previous_room != room:
+            try:
+                notify_room_change(section, previous_room, room)
+            except Exception:
+                pass
+        messages.success(request, f"Se asigno el aula {room.code} automaticamente.")
+    else:
+        messages.warning(request, "No se encontro un aula disponible para esta comision.")
+    return redirect("course_section_list")

@@ -133,8 +133,7 @@ class User(AbstractUser):
             "last_name",
             "email",
             "dni",
-            "gender",
-            "programs",
+            # gender y programs se gestionan aparte y pueden no venir en importación masiva
         ],
     }
 

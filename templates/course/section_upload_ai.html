@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <h2>Carga asistida por IA - {{ section.course.title }}</h2>
-<p class="text-muted">Utilizá este formulario para subir planillas de asistencia, notas o asignación de alumnos. El procesamiento automático se habilitará cuando el servicio de IA esté disponible.</p>
+<p class="text-muted">Usá este formulario para subir planillas de asistencia, notas o inscripción. Puedes reprocesar si falló y ver el log.</p>
 
 <div class="card mb-4">
     <div class="card-body">
@@ -27,10 +27,8 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
-        Historial de cargas
-    </div>
-    <div class="card-body">
+    <div class="card-header">Historial de cargas</div>
+    <div class="card-body table-responsive">
         <table class="table table-striped table-sm align-middle">
             <thead>
                 <tr>
@@ -38,6 +36,8 @@
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Notas</th>
+                    <th>Resultado</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -45,12 +45,23 @@
                     <tr>
                         <td>{{ upload.created_at|date:"d/m/Y H:i" }}</td>
                         <td>{{ upload.get_kind_display }}</td>
-                        <td>{{ upload.get_status_display }}</td>
+                        <td>
+                            {% if upload.status == 'COMPLETED' %}<span class="badge bg-success">{{ upload.get_status_display }}</span>
+                            {% elif upload.status == 'FAILED' %}<span class="badge bg-danger">{{ upload.get_status_display }}</span>
+                            {% elif upload.status == 'PROCESSING' %}<span class="badge bg-warning text-dark">{{ upload.get_status_display }}</span>
+                            {% else %}<span class="badge bg-secondary">{{ upload.get_status_display }}</span>{% endif %}
+                        </td>
                         <td>{{ upload.notes|default:"-" }}</td>
+                        <td class="small">{{ upload.result_log|default:"-"|linebreaksbr }}</td>
+                        <td class="text-end">
+                            {% if upload.status in ('FAILED','COMPLETED') %}
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'bulk_upload_retry' upload.pk %}"><i class="fas fa-redo me-1"></i>Reprocesar</a>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center py-3">No hay cargas registradas.</td>
+                        <td colspan="6" class="text-center py-3">No hay cargas registradas.</td>
                     </tr>
                 {% endfor %}
             </tbody>

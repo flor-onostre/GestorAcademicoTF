@@ -49,20 +49,43 @@ def _parse_llm_json(text: str):
 def _read_rows(file_path: Path):
     ext = file_path.suffix.lower()
     if ext in {".csv", ".txt"}:
-        with file_path.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+        # Detectar delimitador (coma o punto y coma) y manejar BOM
+        with file_path.open("r", encoding="utf-8-sig", newline="") as f:
+            sample = f.read(2048)
+            f.seek(0)
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=";,")
+            except Exception:
+                dialect = csv.get_dialect("excel")
+            reader = csv.DictReader(f, dialect=dialect)
             return list(reader)
     if ext in {".xlsx", ".xls"}:
         try:
             import openpyxl  # type: ignore
         except ImportError:
             raise RuntimeError("Falta instalar openpyxl para leer planillas Excel.")
-        wb = openpyxl.load_workbook(file_path, read_only=True)
-        ws = wb.active
-        headers = [str(c.value).strip() for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        # Toma la hoja con más filas no vacías
+        ws = max(wb.worksheets, key=lambda sh: sh.max_row or 0)
+        # Detectar fila de encabezados (primera fila con al menos un valor)
+        header_row = None
+        for idx, row in enumerate(ws.iter_rows(min_row=1, max_row=ws.max_row), start=1):
+            if any(cell.value is not None for cell in row):
+                header_row = idx
+                break
+        if header_row is None:
+            return []
+        headers = [
+            (str(c.value).strip() if c.value is not None else "")
+            for c in next(ws.iter_rows(min_row=header_row, max_row=header_row))
+        ]
         rows = []
-        for row in ws.iter_rows(min_row=2):
-            rows.append({headers[i]: (row[i].value if i < len(headers) else None) for i in range(len(headers))})
+        for row in ws.iter_rows(min_row=header_row + 1, max_row=ws.max_row):
+            values = {headers[i]: (row[i].value if i < len(headers) else None) for i in range(len(headers))}
+            # Ignorar filas totalmente vacías
+            if not any(v not in (None, "") for v in values.values()):
+                continue
+            rows.append(values)
         return rows
     raise RuntimeError(f"Formato no soportado: {ext}")
 
@@ -120,11 +143,71 @@ def _rows_from_llm(text: str):
         return []
 
 
+def _rows_from_llm_students(headers: str, sample_rows: str):
+    """
+    Usa el LLM para mapear columnas heterogéneas a campos de alumno:
+    dni, first_name, last_name, email, legajo, phone, address, emergency_contact, locality, nationality.
+    Devuelve [] si falla.
+    """
+    prompt = (
+        "Devuelve un JSON array con objetos que tengan estas claves: "
+        "{dni, first_name, last_name, email, legajo, phone, address, emergency_contact, locality, nationality}. "
+        "Completa solo lo que encuentres, si falta algún dato deja \"\". No inventes. "
+        "Los encabezados y filas de ejemplo son:\n"
+        f"Encabezados: {headers}\n"
+        f"Filas de ejemplo:\n{sample_rows}\n"
+    )
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
+    if api_key:
+        try:
+            import google.generativeai as genai  # type: ignore
+
+            genai.configure(api_key=api_key)
+            model_name = getattr(settings, "GEMINI_MODEL", "models/gemini-2.5-flash")
+            model = genai.GenerativeModel(model_name)
+            resp = model.generate_content(
+                prompt,
+                safety_settings=None,
+                generation_config={"response_mime_type": "application/json"},
+            )
+            payload = getattr(resp, "text", None)
+            if not payload and getattr(resp, "candidates", None):
+                first = resp.candidates[0].content.parts[0]
+                payload = getattr(first, "text", None) or getattr(first, "data", None)
+            return _parse_llm_json(payload or "")
+        except Exception:
+            pass
+    try:
+        response = call_local_llm(prompt)
+        return _parse_llm_json(response)
+    except Exception:
+        return []
+
+
 def _extract_text(file_path: Path) -> str:
     """
     Intenta extraer texto v?a OCR para PDF/imagenes con pdf2image + pytesseract.
     Devuelve "" si no se puede.
     """
+    # Primero intentar lectura directa de PDF (texto embebido) si PyPDF2 est? disponible
+    if file_path.suffix.lower() == ".pdf":
+        try:
+            import PyPDF2  # type: ignore
+
+            text_parts = []
+            with file_path.open("rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                for page in reader.pages:
+                    try:
+                        text_parts.append(page.extract_text() or "")
+                    except Exception:
+                        continue
+            direct_text = "\n".join(text_parts).strip()
+            if direct_text:
+                return direct_text
+        except Exception:
+            pass
+
     try:
         import pytesseract  # type: ignore
         from pdf2image import convert_from_path  # type: ignore

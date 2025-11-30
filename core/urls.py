@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 
 from .views import (
     attendance_dashboard,
@@ -25,6 +25,7 @@ from .views import (
     semester_detail_view,
     semester_list_view,
     semester_update_view,
+    bulk_upload_retry,
     session_add_view,
     session_delete_view,
     session_detail_view,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("item/<int:pk>/delete/", delete_post, name="delete_post"),
     path("item/<int:pk>/respond/", event_invitation_response, name="event_invitation_response"),
     path("attendance/dashboard/", attendance_dashboard, name="attendance_dashboard"),
+    path("attendance/uploads/<int:pk>/retry/", bulk_upload_retry, name="bulk_upload_retry"),
     path("session/", session_list_view, name="session_list"),
     path("session/add/", session_add_view, name="add_session"),
     path("session/<int:pk>/edit/", session_update_view, name="edit_session"),

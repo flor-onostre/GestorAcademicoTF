@@ -23,6 +23,7 @@ urlpatterns = [
     path("sections/add/", views.course_section_create, name="course_section_create"),
     path("sections/<int:pk>/edit/", views.course_section_update, name="course_section_update"),
     path("sections/<int:pk>/delete/", views.course_section_delete, name="course_section_delete"),
+    path("sections/<int:pk>/assign_room/", views.course_section_assign_room, name="course_section_assign_room"),
     path("sections/<int:pk>/sessions/", views.section_sessions_view, name="section_sessions"),
     path("sections/<int:pk>/students/", views.section_enrollment, name="section_enrollment"),
     path("sessions/<int:session_id>/attendance/", views.session_attendance_view, name="session_attendance"),

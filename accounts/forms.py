@@ -604,3 +604,18 @@ class ProfileUpdateForm(UserChangeForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+class StudentUploadForm(forms.Form):
+    program = forms.ModelChoiceField(
+        queryset=Program.objects.all().order_by("title"),
+        required=True,
+        label="Carrera",
+        widget=forms.Select(attrs={"class": "browser-default custom-select form-control"}),
+        help_text="Se asignará esta carrera a todos los alumnos importados.",
+    )
+    file = forms.FileField(
+        required=True,
+        label="Archivo de estudiantes",
+        help_text="CSV/XLSX con columnas dni, email, nombre, apellido, programas (opcional).",
+        widget=forms.FileInput(attrs={"class": "form-control"}),
+    )

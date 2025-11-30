@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load i18n %}
 
 {% block content %}
@@ -6,10 +6,10 @@
 
 <div class="row">
     <div class="col-md-4">
-        <div class="card mb-4">
+        <div class="card mb-4 h-100">
             <div class="card-header">{% trans "Clases sin asistencia cargada" %}</div>
             <div class="card-body">
-                <ul class="list-group list-group-flush">
+                <ul class="list-group list-group-flush" style="max-height: 320px; overflow-y: auto;">
                 {% for session in missing_sessions %}
                     <li class="list-group-item">
                         <strong>{{ session.section.course.title }}</strong><br>
@@ -24,7 +24,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card mb-4">
+        <div class="card mb-4 h-100">
             <div class="card-header">{% trans "Secciones con más ausencias" %}</div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
@@ -41,7 +41,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card mb-4">
+        <div class="card mb-4 h-100">
             <div class="card-header">{% trans "Uso de aulas" %}</div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
@@ -64,14 +64,14 @@
 
 <div class="row">
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-4 h-100">
             <div class="card-header">{% trans "Docentes con sesiones sin cargar" %}</div>
-            <div class="card-body">
+            <div class="card-body" style="max-height: 320px; overflow-y: auto;">
                 <ul class="list-group list-group-flush">
                 {% for item in teacher_pending %}
                     <li class="list-group-item">
                         <strong>{{ item.teacher.get_full_name|default:item.teacher.username }}</strong>
-                        <ul class="mt-2">
+                        <ul class="mt-2 mb-0">
                         {% for sess in item.sessions %}
                             <li>{{ sess.date|date:"d/m" }} - {{ sess.section.course.title }} ({{ sess.section.turn.name }})</li>
                         {% endfor %}
@@ -85,11 +85,11 @@
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-4 h-100">
             <div class="card-header">{% trans "Ausentismo por carrera y semana" %}</div>
             <div class="card-body">
                 <h6 class="text-muted">{% trans "Por carrera" %}</h6>
-                <ul class="list-group list-group-flush mb-3">
+                <ul class="list-group list-group-flush mb-3" style="max-height: 160px; overflow-y: auto;">
                 {% for stat in absence_by_program %}
                     <li class="list-group-item d-flex justify-content-between">
                         <span>{{ stat.session__section__program__title|default:"-" }}</span>
@@ -100,7 +100,7 @@
                 {% endfor %}
                 </ul>
                 <h6 class="text-muted">{% trans "Por semana" %}</h6>
-                <ul class="list-group list-group-flush">
+                <ul class="list-group list-group-flush" style="max-height: 140px; overflow-y: auto;">
                 {% for stat in absence_by_week %}
                     <li class="list-group-item d-flex justify-content-between">
                         <span>{% trans "Semana" %} {{ stat.week }}</span>
@@ -118,13 +118,15 @@
 <div class="card">
     <div class="card-header">{% trans "Planillas pendientes de IA" %}</div>
     <div class="card-body table-responsive">
-        <table class="table">
+        <table class="table table-sm align-middle">
             <thead>
                 <tr>
                     <th>{% trans "Comisión" %}</th>
                     <th>{% trans "Tipo" %}</th>
-                    <th>{% trans "Subido por" %}</th>
+                    <th>{% trans "Estado" %}</th>
                     <th>{% trans "Fecha" %}</th>
+                    <th>{% trans "Resultado" %}</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -132,12 +134,23 @@
                 <tr>
                     <td>{{ upload.section }}</td>
                     <td>{{ upload.get_kind_display }}</td>
-                    <td>{{ upload.uploaded_by.get_full_name }}</td>
+                    <td>
+                        {% if upload.status == 'COMPLETED' %}<span class="badge bg-success">{{ upload.get_status_display }}</span>
+                        {% elif upload.status == 'FAILED' %}<span class="badge bg-danger">{{ upload.get_status_display }}</span>
+                        {% elif upload.status == 'PROCESSING' %}<span class="badge bg-warning text-dark">{{ upload.get_status_display }}</span>
+                        {% else %}<span class="badge bg-secondary">{{ upload.get_status_display }}</span>{% endif %}
+                    </td>
                     <td>{{ upload.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="small">{{ upload.result_log|default:"-"|linebreaksbr }}</td>
+                    <td class="text-end">
+                        {% if upload.status in ('FAILED','COMPLETED') %}
+                            <a class="btn btn-sm btn-outline-primary" href="{% url 'bulk_upload_retry' upload.pk %}">{% trans "Reprocesar" %}</a>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">{% trans "Sin planillas pendientes." %}</td>
+                    <td colspan="6" class="text-center text-muted">{% trans "Sin planillas pendientes." %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
