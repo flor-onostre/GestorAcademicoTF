@@ -1,0 +1,328 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'room_list' %}">{% trans 'Pisos y espacios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'DistribuciÃ³n Ã¡ulica' %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex gap-2 align-items-center">
+        <button id="prev-week" class="btn btn-outline-secondary btn-sm"><i class="fas fa-chevron-left"></i> {% trans 'Semana anterior' %}</button>
+        <button id="next-week" class="btn btn-outline-secondary btn-sm">{% trans 'Semana siguiente' %} <i class="fas fa-chevron-right"></i></button>
+        <input type="date" id="week-date" class="form-control form-control-sm" style="width: 170px;">
+    </div>
+    <div class="d-flex gap-2">
+        <button id="auto-assign" class="btn btn-primary btn-sm"><i class="fas fa-magic me-1"></i>{% trans 'Autoasignar espacios' %}</button>
+    </div>
+</div>
+
+<div id="grid-container" class="mb-4"></div>
+
+<h5 class="mt-4">{% trans 'No asignados' %}</h5>
+<div id="unassigned-container" class="mb-3"></div>
+
+<div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{% trans 'Reasignar espacio' %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="assign-section-id">
+        <div class="mb-2">
+            <label class="form-label">{% trans 'Seleccionar aula' %}</label>
+            <select id="assign-room" class="form-select form-select-sm"></select>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="assign-virtual">
+            <label class="form-check-label" for="assign-virtual">{% trans 'Marcar virtual (sin aula)' %}</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="assign-unassign">
+            <label class="form-check-label" for="assign-unassign">{% trans 'Desasignar aula (sin cambiar virtualidad)' %}</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="assign-auto" class="btn btn-outline-primary">{% trans 'Autoasignar para esta comisiÃ³n' %}</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Cancelar' %}</button>
+        <button type="button" id="assign-save" class="btn btn-primary">{% trans 'Guardar' %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="proposalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{% trans 'Propuesta de autoasignaciÃ³n' %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="proposal-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Cerrar' %}</button>
+        <button type="button" id="apply-proposal" class="btn btn-primary">{% trans 'Aplicar propuesta' %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+    const weekDateInput = document.getElementById('week-date');
+    const prevWeekBtn = document.getElementById('prev-week');
+    const nextWeekBtn = document.getElementById('next-week');
+    const gridContainer = document.getElementById('grid-container');
+    const unassignedContainer = document.getElementById('unassigned-container');
+    const autoAssignBtn = document.getElementById('auto-assign');
+    const proposalBody = document.getElementById('proposal-body');
+    const applyProposalBtn = document.getElementById('apply-proposal');
+    const assignModalEl = document.getElementById('assignModal');
+    const assignSectionId = document.getElementById('assign-section-id');
+    const assignRoomSelect = document.getElementById('assign-room');
+    const assignVirtual = document.getElementById('assign-virtual');
+    const assignSave = document.getElementById('assign-save');
+    const assignAuto = document.getElementById('assign-auto');
+    const assignUnassign = document.getElementById('assign-unassign');
+    let currentRooms = [];
+    let proposalData = null;
+
+    const today = new Date("{{ base_date|date:'Y-m-d' }}");
+    weekDateInput.value = today.toISOString().slice(0,10);
+
+    function formatTime(t) {
+        return t ? t.slice(0,5) : '';
+    }
+
+    function renderGrid(data) {
+        gridContainer.innerHTML = '';
+        currentRooms = data.rooms || [];
+        const days = ["Lunes","Martes","MiÃ©rcoles","Jueves","Viernes","SÃ¡bado"];
+        const roomsByFloor = {};
+        (data.rooms || []).forEach(r => {
+            const key = r.floor || 'Sin piso';
+            roomsByFloor[key] = roomsByFloor[key] || [];
+            roomsByFloor[key].push(r);
+        });
+        for (const floor of Object.keys(roomsByFloor)) {
+            const table = document.createElement('table');
+            table.className = 'table table-bordered table-sm mb-4';
+            const thead = document.createElement('thead');
+            let h = '<tr><th style="width:140px;">'+floor+'</th>';
+            days.forEach(d => h += '<th>'+d+'</th>');
+            h += '</tr>';
+            thead.innerHTML = h;
+            const tbody = document.createElement('tbody');
+            roomsByFloor[floor].forEach(room => {
+                let row = '<tr><th>'+room.code+'<br><small>'+ (room.capacity || '-') +' pax</small></th>';
+                days.forEach(d => {
+                    const slots = (data.grid[room.id] && data.grid[room.id][d]) || [];
+                    if (!slots.length) {
+                        row += '<td class="text-muted small">-</td>';
+                    } else {
+                        let html = '';
+                        slots.forEach(s => {
+                            html += `<div class="border rounded p-1 mb-1 bg-light assignable" data-section="${s.section_id}">
+                                        <div><strong>${s.code}</strong> - ${s.course}</div>
+                                        <div class="text-muted small">${s.turn} ${formatTime(s.start_time)}-${formatTime(s.end_time)}</div>
+                                    </div>`;
+                        });
+                        row += '<td>'+html+'</td>';
+                    }
+                });
+                row += '</tr>';
+                tbody.innerHTML += row;
+            });
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            gridContainer.appendChild(table);
+        }
+    }
+
+    function renderUnassigned(data) {
+        const list = data.unassigned || [];
+        if (!list.length) {
+            unassignedContainer.innerHTML = '<div class="text-muted small">{% trans "No hay pendientes de asignar." %}</div>';
+            return;
+        }
+        let html = '<ul class="list-group">';
+        list.forEach(item => {
+            html += `<li class="list-group-item d-flex justify-content-between align-items-center assignable" data-section="${item.section_id}">
+                        <div><strong>${item.code}</strong> - ${item.course} ${(item.virtual ? '(Virtual)' : '')}</div>
+                        <span class="badge bg-secondary">${formatTime(item.start_time) || ''}</span>
+                    </li>`;
+        });
+        html += '</ul>';
+        unassignedContainer.innerHTML = html;
+    }
+
+    async function loadWeek() {
+        const fecha = weekDateInput.value;
+        const resp = await fetch(`{% url 'assignment_week_api' %}?fecha=${fecha}`, {headers: {"Accept":"application/json"}, credentials:'same-origin'});
+        const data = await resp.json();
+        renderGrid(data);
+        renderUnassigned(data);
+    }
+
+    prevWeekBtn.addEventListener('click', () => {
+        const d = new Date(weekDateInput.value || new Date());
+        d.setDate(d.getDate() - 7);
+        weekDateInput.value = d.toISOString().slice(0,10);
+        loadWeek();
+    });
+    nextWeekBtn.addEventListener('click', () => {
+        const d = new Date(weekDateInput.value || new Date());
+        d.setDate(d.getDate() + 7);
+        weekDateInput.value = d.toISOString().slice(0,10);
+        loadWeek();
+    });
+    weekDateInput.addEventListener('change', loadWeek);
+
+    autoAssignBtn.addEventListener('click', async () => {
+        const fecha = weekDateInput.value;
+        const resp = await fetch(`{% url 'assignment_auto_api' %}?fecha=${fecha}`, {method:"POST", credentials:'same-origin'});
+        const data = await resp.json();
+        proposalData = data.proposal || [];
+        let html = '';
+        if (!proposalData.length) {
+            html = '<div class="alert alert-info">{% trans "No hay propuesta disponible." %}</div>';
+        } else {
+            html = '<ul class="list-group">';
+            proposalData.forEach(p => {
+                html += `<li class="list-group-item">SecciÃ³n ${p.section_id} â†’ Aula ${p.room_id} <span class="badge bg-info ms-2">${p.nivel||''}</span></li>`;
+            });
+            html += '</ul>';
+        }
+        proposalBody.innerHTML = html;
+        const modal = new bootstrap.Modal(document.getElementById('proposalModal'));
+        modal.show();
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    function openAssignModal(sectionId) {
+        assignSectionId.value = sectionId;
+        assignVirtual.checked = false;
+        assignUnassign.checked = false;
+        assignRoomSelect.innerHTML = '<option value="">-- Seleccionar aula --</option>';
+        currentRooms.forEach(r => {
+            assignRoomSelect.innerHTML += `<option value="${r.id}">${r.code} (${r.capacity||'-'} pax)</option>`;
+        });
+        const modal = new bootstrap.Modal(assignModalEl);
+        modal.show();
+    }
+
+    document.addEventListener('click', (ev) => {
+        const target = ev.target.closest('.assignable');
+        if (!target) return;
+        const sid = target.getAttribute('data-section');
+        if (sid) openAssignModal(sid);
+    });
+
+    assignSave.addEventListener('click', async () => {
+        const sid = assignSectionId.value;
+        const rid = assignVirtual.checked || assignUnassign.checked ? null : assignRoomSelect.value;
+        if (!sid) return;
+        const payload = {section_id: sid};
+        if (assignUnassign.checked) {
+            payload.virtual = false;
+            payload.room_id = null;
+        } else if (assignVirtual.checked) {
+            payload.virtual = true;
+        } else if (rid) {
+            payload.room_id = rid;
+        } else {
+            alert('Selecciona un aula o marca virtual/desasignar');
+            return;
+        }
+        const resp = await fetch('{% url 'assignment_manual_api' %}', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken': csrftoken},
+            credentials:'same-origin',
+            body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+            const txt = await resp.text();
+            alert('Error al asignar: ' + txt);
+            return;
+        }
+        const data = await resp.json();
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        const modal = bootstrap.Modal.getInstance(assignModalEl);
+        modal.hide();
+        loadWeek();
+    });
+
+    assignAuto.addEventListener('click', async () => {
+        const sid = assignSectionId.value;
+        if (!sid) return;
+        // Autoasignar sÃ³lo esta secciÃ³n: llamamos al endpoint manual con room_id null para que IA/fallback sugiera.
+        const resp = await fetch(`{% url 'assignment_auto_api' %}?section=${sid}`, {method:"POST", credentials:'same-origin'});
+        const data = await resp.json();
+        const prop = (data.proposal || []).find(p => String(p.section_id) === String(sid));
+        if (!prop) {
+            alert('{% trans "No se encontrÃ³ propuesta para esta comisiÃ³n." %}');
+            return;
+        }
+        const payload = {section_id: sid, room_id: prop.room_id};
+        const respApply = await fetch('{% url 'assignment_apply_api' %}', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken': csrftoken},
+            credentials:'same-origin',
+            body: JSON.stringify({assignments: [payload]}),
+        });
+        const dataApply = await respApply.json();
+        const modal = bootstrap.Modal.getInstance(assignModalEl);
+        modal.hide();
+        loadWeek();
+    });
+
+    applyProposalBtn.addEventListener('click', async () => {
+        if (!proposalData) return;
+        const resp = await fetch('{% url 'assignment_apply_api' %}', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken': csrftoken},
+            credentials:'same-origin',
+            body: JSON.stringify({assignments: proposalData}),
+        });
+        const data = await resp.json();
+        alert(`Aplicados: ${data.applied || 0}`);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('proposalModal'));
+        modal.hide();
+        loadWeek();
+    });
+
+    loadWeek();
+})();
+</script>
+{% endblock %}
+
+
+
+
+

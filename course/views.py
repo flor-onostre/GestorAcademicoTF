@@ -1366,12 +1366,12 @@ def course_section_assign_room(request, pk):
     previous_room = section.room
     room = _auto_assign_room(section)
     if room:
-        if previous_room != room:
-            try:
-                notify_room_change(section, previous_room, room)
-            except Exception:
-                pass
-        messages.success(request, f"Se asigno el aula {room.code} automaticamente.")
+        try:
+            # Notificar siempre que se asigna (nuevo o cambio)
+            notify_room_change(section, previous_room, room)
+        except Exception:
+            pass
+        messages.success(request, f"Se asignó el aula {room.code} automáticamente.")
     else:
         messages.warning(request, "No se encontro un aula disponible para esta comision.")
     return redirect("course_section_list")

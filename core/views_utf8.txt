@@ -1,5 +1,4 @@
-from datetime import timedelta, datetime, date
-import json
+﻿from datetime import timedelta
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import models
@@ -7,13 +6,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
-from django.http import JsonResponse
 from django.db.models.functions import ExtractWeek
 
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import User, Student
 from course.models import Course, CourseSection, Program
-from core.services.room_auto_assigner import RoomAutoAssigner
 from .forms import (
     BuildingFloorForm,
     NewsAndEventsForm,
@@ -272,7 +269,7 @@ def post_add(request):
     ensure_publish_permission(request.user)
     if request.method == "POST":
         form = NewsAndEventsForm(request.POST, user=request.user)
-        title = form.cleaned_data.get("title", "PublicaciÃ³n") if form.is_valid() else None
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
             instance = form.save(commit=False)
             instance.created_by = request.user
@@ -280,10 +277,10 @@ def post_add(request):
             form.save_m2m()
             messages.success(request, f"{title} fue publicada correctamente.")
             return redirect("home")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = NewsAndEventsForm(user=request.user)
-    return render(request, "core/post_add.html", {"title": "Agregar publicaciÃ³n", "form": form})
+    return render(request, "core/post_add.html", {"title": "Agregar publicación", "form": form})
 
 
 @login_required
@@ -295,15 +292,15 @@ def edit_post(request, pk):
         form = NewsAndEventsForm(
             request.POST, instance=instance, user=request.user
         )
-        title = form.cleaned_data.get("title", "PublicaciÃ³n") if form.is_valid() else None
+        title = form.cleaned_data.get("title", "Publicación") if form.is_valid() else None
         if form.is_valid():
             form.save()
             messages.success(request, f"{title} fue actualizada correctamente.")
             return redirect("home")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = NewsAndEventsForm(instance=instance, user=request.user)
-    return render(request, "core/post_add.html", {"title": "Editar publicaciÃ³n", "form": form})
+    return render(request, "core/post_add.html", {"title": "Editar publicación", "form": form})
 
 
 @login_required
@@ -338,7 +335,7 @@ def event_invitation_response(request, pk):
         invitation.save(update_fields=["status", "responded_at"])
         messages.success(request, "Tu respuesta fue registrada.")
     else:
-        messages.error(request, "No se reconociÃ³ la acciÃ³n solicitada.")
+        messages.error(request, "No se reconoció la acción solicitada.")
     return redirect("home")
 
 
@@ -436,7 +433,7 @@ def session_update_view(request, pk):
 def session_delete_view(request, pk):
     session = get_object_or_404(Session, pk=pk)
     if session.is_current_session:
-        messages.error(request, "No podÃ©s eliminar el ciclo lectivo actual.")
+        messages.error(request, "No podés eliminar el ciclo lectivo actual.")
     else:
         session.delete()
         messages.success(request, "Ciclo lectivo eliminado correctamente.")
@@ -489,7 +486,7 @@ def semester_update_view(request, pk):
                 unset_current_semester()
                 unset_current_session()
             form.save()
-            messages.success(request, "Â¡Cuatrimestre actualizado correctamente!")
+            messages.success(request, "¡Cuatrimestre actualizado correctamente!")
             return redirect("semester_list")
     else:
         form = SemesterForm(instance=semester)
@@ -501,7 +498,7 @@ def semester_update_view(request, pk):
 def semester_delete_view(request, pk):
     semester = get_object_or_404(Semester, pk=pk)
     if semester.is_current_semester:
-        messages.error(request, "No podÃ©s eliminar el cuatrimestre actual.")
+        messages.error(request, "No podés eliminar el cuatrimestre actual.")
     else:
         semester.delete()
         messages.success(request, "Cuatrimestre eliminado correctamente.")
@@ -548,7 +545,7 @@ def floor_create_view(request):
             form.save()
             messages.success(request, "Piso creado correctamente.")
             return redirect("floor_list")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = BuildingFloorForm()
     return render(request, "core/floor_form.html", {"form": form, "title": "Nuevo piso"})
@@ -564,7 +561,7 @@ def floor_update_view(request, pk):
             form.save()
             messages.success(request, "Piso actualizado correctamente.")
             return redirect("floor_list")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = BuildingFloorForm(instance=floor)
     return render(
@@ -658,297 +655,6 @@ def room_block_delete(request, pk):
     return render(request, "core/room_block_confirm_delete.html", {"block": block, "title": "Eliminar bloqueo"})
 
 
-# -------------------------------------------------
-# API de distribución áulica / autoasignación
-# -------------------------------------------------
-def _week_bounds(base_date):
-    start = base_date - timedelta(days=base_date.weekday())
-    end = start + timedelta(days=6)
-    return start, end
-
-
-def _section_is_virtual_on(section, day_name, current_date):
-    if getattr(section, "virtual_days", None) and day_name in (section.virtual_days or []):
-        return True
-    if section.virtual_from and section.virtual_to:
-        if section.virtual_from <= current_date <= section.virtual_to:
-            return True
-    return False
-
-
-@login_required
-@admin_required
-def weekly_assignment_api(request):
-    """Devuelve la grilla semanal (JSON) de aulas y comisiones."""
-    ref_str = request.GET.get("fecha")
-    try:
-        base_date = datetime.strptime(ref_str, "%Y-%m-%d").date() if ref_str else timezone.localdate()
-    except Exception:
-        base_date = timezone.localdate()
-    week_start, week_end = _week_bounds(base_date)
-    days_order = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-    rooms = list(Room.objects.filter(is_enabled=True).select_related("floor"))
-    sections = CourseSection.objects.filter(
-        is_active=True,
-        start_date__lte=week_end,
-        end_date__gte=week_start,
-    ).select_related("course", "turn", "room", "semester")
-
-    def day_name(d: date):
-        return ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][d.weekday()]
-
-    grid = {}
-    for room in rooms:
-        grid[room.id] = {d: [] for d in days_order}
-
-    unassigned = []
-    for sec in sections:
-        current = week_start
-        while current <= week_end:
-            dname = day_name(current)
-            need_room = not _section_is_virtual_on(sec, dname, current)
-            has_room = bool(sec.room_id)
-            if need_room and dname in (sec.days_of_week or []):
-                entry = {
-                    "section_id": sec.id,
-                    "code": sec.code or "",
-                    "course": sec.course.title,
-                    "turn": sec.turn.name if sec.turn else "",
-                    "start_time": sec.start_time.isoformat() if sec.start_time else "",
-                    "end_time": sec.end_time.isoformat() if sec.end_time else "",
-                    "room_id": sec.room_id,
-                    "virtual": False,
-                }
-                if has_room:
-                    grid.get(sec.room_id, {}).get(dname, []).append(entry)
-                else:
-                    unassigned.append(entry)
-            elif not need_room and dname in (sec.days_of_week or []):
-                unassigned.append(
-                    {
-                        "section_id": sec.id,
-                        "code": sec.code or "",
-                        "course": sec.course.title,
-                        "turn": sec.turn.name if sec.turn else "",
-                        "start_time": sec.start_time.isoformat() if sec.start_time else "",
-                        "end_time": sec.end_time.isoformat() if sec.end_time else "",
-                        "room_id": None,
-                        "virtual": True,
-                    }
-                )
-            current += timedelta(days=1)
-
-    data = {
-        "week_start": week_start.isoformat(),
-        "week_end": week_end.isoformat(),
-        "rooms": [
-            {
-                "id": r.id,
-                "code": r.code,
-                "name": r.name,
-                "floor": r.floor.name if r.floor else "",
-                "baja_prioridad": r.baja_prioridad,
-                "capacity": r.capacity,
-            }
-            for r in rooms
-        ],
-        "grid": grid,
-        "unassigned": unassigned,
-    }
-    return JsonResponse(data)
-
-
-@login_required
-@admin_required
-def auto_assignment_api(request):
-    """Calcula propuesta con IA + fallback."""
-    ref_str = request.GET.get("fecha")
-    section_only = request.GET.get("section")
-    try:
-        base_date = datetime.strptime(ref_str, "%Y-%m-%d").date() if ref_str else timezone.localdate()
-    except Exception:
-        base_date = timezone.localdate()
-    rooms = list(Room.objects.filter(is_enabled=True))
-    qs = CourseSection.objects.filter(is_active=True, start_date__lte=base_date + timedelta(days=6), end_date__gte=base_date)
-    if section_only:
-        qs = qs.filter(pk=section_only)
-    sections = list(qs.select_related("course", "turn", "room", "semester"))
-    assigner = RoomAutoAssigner(base_date, rooms, sections)
-    proposal = assigner.build_assignment_proposal()
-    return JsonResponse({"proposal": proposal})
-
-
-@login_required
-@admin_required
-def apply_assignment_api(request):
-    """Aplica propuesta enviada por el usuario."""
-    try:
-        payload = json.loads(request.body.decode() or "{}")
-    except Exception:
-        return JsonResponse({"error": "JSON inválido"}, status=400)
-    assignments = payload.get("assignments") or []
-    rooms = list(Room.objects.filter(is_enabled=True))
-    sections = list(CourseSection.objects.filter(id__in=[a.get("section_id") for a in assignments]).select_related("course", "turn", "room"))
-    assigner = RoomAutoAssigner(timezone.localdate(), rooms, sections)
-    applied = assigner.apply_assignments(assignments)
-    return JsonResponse({"applied": applied})
-
-
-@login_required
-@admin_required
-def manual_assignment_api(request):
-    """
-    Asignación manual: recibe section_id y room_id (opcional) o virtual=True.
-    Verifica capacidad y aplica; si virtual=True, desasigna aula.
-    """
-    try:
-        payload = json.loads(request.body.decode() or "{}")
-    except Exception:
-        return JsonResponse({"error": "JSON inválido"}, status=400)
-    sec_id = payload.get("section_id") or payload.get("section") or payload.get("id") or payload.get("sectionId")
-    room_id = payload.get("room_id")
-    virtual_flag = payload.get("virtual")
-    if not sec_id:
-        return JsonResponse({"error": "Faltan parámetros (section_id)"}, status=400)
-    section = get_object_or_404(CourseSection, pk=sec_id)
-    if virtual_flag is True:
-        prev = section.room
-        section.room = None
-        section.save(update_fields=["room"])
-        return JsonResponse({"status": "ok", "section_id": sec_id, "room": None})
-    if virtual_flag is False and payload.get("room_id") is None:
-        prev = section.room
-        section.room = None
-        section.save(update_fields=["room"])
-        return JsonResponse({"status": "ok", "section_id": sec_id, "room": None})
-    if not room_id:
-        return JsonResponse({"error": "Falta room_id"}, status=400)
-    room = get_object_or_404(Room, pk=room_id)
-    # Validación simple: capacidad
-    if room.capacity and section.students.count() > room.capacity:
-        return JsonResponse({"error": "Capacidad insuficiente"}, status=400)
-    prev = section.room
-    section.room = room
-    section.save(update_fields=["room"])
-    try:
-        notify_room_change(section, prev, room)
-    except Exception:
-        pass
-    return JsonResponse({"status": "ok", "section_id": sec_id, "room": room.code})
-
-# -------------------------------------------------
-# Distribución áulica (vista de grilla por salas)
-# -------------------------------------------------
-@login_required
-@admin_required
-def room_schedule_view(request):
-    from course.models import CourseSection
-    days_order = ["Lunes", "Martes", "MiÃ©rcoles", "Jueves", "Viernes", "SÃ¡bado"]
-    sections = (
-        CourseSection.objects.filter(room__isnull=False, is_active=True)
-        .select_related("room", "course", "turn", "semester")
-        .order_by("room__code")
-    )
-
-    from datetime import time
-    def parse_time(val):
-        if not val:
-            return None
-        if isinstance(val, str):
-            parts = val.split(":")
-            try:
-                return time(int(parts[0]), int(parts[1] if len(parts) > 1 else 0))
-            except Exception:
-                return None
-        return val
-
-    meetings = []
-    time_slots = set()
-    for sec in sections:
-        if sec.schedule_by_day:
-            for item in sec.schedule_by_day:
-                day = item.get("day")
-                start = parse_time(item.get("start"))
-                end = parse_time(item.get("end"))
-                if day and start:
-                    meetings.append((sec, day, start, end))
-                    time_slots.add(start)
-        elif sec.days_of_week and sec.start_time:
-            for day in sec.days_of_week:
-                start = parse_time(sec.start_time)
-                end = parse_time(sec.end_time)
-                meetings.append((sec, day, start, end))
-                if start:
-                    time_slots.add(start)
-
-    time_slots = sorted(list(time_slots))
-
-    from itertools import groupby
-    room_data = []
-    for room, room_meetings in groupby(meetings, key=lambda m: m[0].room):
-        grid = {slot: {d: [] for d in days_order} for slot in time_slots}
-        for sec, day, start, end in room_meetings:
-            if start in grid and day in grid[start]:
-                grid[start][day].append(
-                    {
-                        "code": sec.code or "",
-                        "course": sec.course.title,
-                        "turn": sec.turn.name if sec.turn else "",
-                        "time": f"{start.strftime('%H:%M')} - {end.strftime('%H:%M') if end else ''}",
-                        "id": sec.id,
-                    }
-                )
-        rows = []
-        for slot in time_slots:
-            rows.append(
-                {
-                    "slot": slot,
-                    "cols": [grid.get(slot, {}).get(day, []) for day in days_order],
-                }
-            )
-        room_data.append({"room": room, "grid": grid, "rows": rows})
-
-    return render(
-        request,
-        "core/room_schedule.html",
-        {
-            "room_data": room_data,
-            "days": days_order,
-            "time_slots": time_slots,
-            "title": "Distribución áulica",
-        },
-    )
-
-
-@login_required
-@admin_required
-def room_auto_assign_view(request):
-    """
-    Asigna automáticamente aulas a las comisiones activas sin sala
-    y notifica a alumnos, docentes y Bedelía si se asignó/cambió.
-    """
-    from course.models import CourseSection
-    from course.views import _auto_assign_room
-    from core.notifications import notify_room_change
-
-    assigned = 0
-    sections = CourseSection.objects.filter(is_active=True, room__isnull=True)
-    for sec in sections:
-        previous = sec.room
-        room = _auto_assign_room(sec)
-        if room:
-            assigned += 1
-            try:
-                notify_room_change(sec, previous, room)
-            except Exception:
-                pass
-    if assigned:
-        messages.success(request, f"Se asignaron automáticamente {assigned} comisiones.")
-    else:
-        messages.info(request, "No había comisiones pendientes de asignar aula.")
-    return redirect("room_schedule")
-
-
 @login_required
 @admin_required
 def room_create_view(request):
@@ -958,7 +664,7 @@ def room_create_view(request):
             form.save()
             messages.success(request, "Espacio creado correctamente.")
             return redirect("room_list")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = RoomForm()
     return render(
@@ -978,7 +684,7 @@ def room_update_view(request, pk):
             form.save()
             messages.success(request, "Espacio actualizado correctamente.")
             return redirect("room_list")
-        messages.error(request, "CorregÃ­ los errores indicados abajo.")
+        messages.error(request, "Corregí los errores indicados abajo.")
     else:
         form = RoomForm(instance=room)
     return render(
@@ -1013,3 +719,4 @@ def bulk_upload_retry(request, pk):
     enqueue_ai_processing(upload)
     messages.info(request, "Reprocesamiento iniciado.")
     return redirect("attendance_dashboard")
+

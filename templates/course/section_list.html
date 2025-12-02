@@ -102,13 +102,7 @@
                                 -
                             {% endfor %}
                         </td>
-                        <td>
-                            {% for student in section.students.all %}
-                                <span class="badge bg-secondary mb-1">{{ student.get_full_name }}</span><br>
-                            {% empty %}
-                                -
-                            {% endfor %}
-                        </td>
+                        <td>{{ section.students.count }}</td>
                         <td>
                             {% if section.program.min_passing_attendance %}
                                 {{ section.program.min_passing_attendance }}%

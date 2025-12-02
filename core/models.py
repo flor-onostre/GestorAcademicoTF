@@ -286,6 +286,10 @@ class Room(models.Model):
     room_type = models.CharField(max_length=20, choices=ROOM_TYPES, default=CLASSROOM)
     capacity = models.PositiveIntegerField(default=0)
     is_enabled = models.BooleanField(default=True)
+    baja_prioridad = models.BooleanField(
+        default=False,
+        help_text=_("Marcar si el aula es de uso preferente solo si no hay otras opciones.")
+    )
     description = models.TextField(blank=True)
 
     class Meta:

@@ -46,6 +46,7 @@
                 <thead>
                     <tr>
                         <th>#</th>
+                        <th>{% trans 'Nombre' %}</th>
                         <th>{% trans 'Código' %}</th>
                         <th>{% trans 'Tipo' %}</th>
                         <th>{% trans 'Capacidad' %}</th>
@@ -58,6 +59,7 @@
                     {% for room in rooms %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
+                        <td>{{ room.name|default:"-" }}</td>
                         <td>{{ room.code }}</td>
                         <td>{{ room.get_room_type_display }}</td>
                         <td>{{ room.capacity }}</td>

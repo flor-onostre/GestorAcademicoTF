@@ -465,6 +465,13 @@ class CourseSection(models.Model):
         blank=True,
         help_text=_("Horarios por d?a, ej: [{'day': 'Lunes', 'start': '08:00', 'end': '10:00'}]."),
     )
+    virtual_days = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_("D?as virtuales (no requieren aula) ej: ['Lunes', 'Mi?rcoles']."),
+    )
+    virtual_from = models.DateField(null=True, blank=True, help_text=_("Fecha desde virtualidad (opcional)."))
+    virtual_to = models.DateField(null=True, blank=True, help_text=_("Fecha hasta virtualidad (opcional)."))
     max_capacity = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,0 +1,72 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Inicio' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'room_list' %}">{% trans 'Pisos y espacios' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Distribución áulica' %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0"><i class="fas fa-chalkboard me-2"></i>{% trans 'Distribución áulica' %}</h4>
+    <a class="btn btn-primary" href="{% url 'room_auto_assign' %}">
+        <i class="fas fa-magic me-1"></i>{% trans 'Asignar espacios automáticamente' %}
+    </a>
+</div>
+
+{% if not room_data %}
+    <div class="alert alert-info">{% trans 'No hay comisiones con aulas asignadas.' %}</div>
+{% endif %}
+
+{% for item in room_data %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ item.room.code }}</strong>
+                <span class="text-muted">- {{ item.room.get_room_type_display }}</span>
+            </div>
+            <div class="text-muted small">{{ item.room.floor.name }}</div>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 90px;">{% trans 'Hora' %}</th>
+                        {% for day in days %}
+                            <th>{{ day }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in item.rows %}
+                        <tr>
+                            <td class="fw-semibold">{{ row.slot|time:"H:i" }}</td>
+                            {% for col in row.cols %}
+                                <td style="min-width: 180px;">
+                                    {% if col %}
+                                        {% for sec in col %}
+                                            <div class="mb-1 p-1 border rounded small">
+                                                <div><strong>{{ sec.code }}</strong> - {{ sec.course }}</div>
+                                                <div class="text-muted">{{ sec.turn }} | {{ sec.time }}</div>
+                                                <a class="btn btn-link btn-sm p-0" href="{% url 'course_section_update' sec.id %}">{% trans 'Editar' %}</a>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}
+
+
+

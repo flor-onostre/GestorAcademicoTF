@@ -20,6 +20,8 @@ from .views import (
     room_delete_view,
     room_list_view,
     room_update_view,
+    room_schedule_view,
+    room_auto_assign_view,
     semester_add_view,
     semester_delete_view,
     semester_detail_view,
@@ -31,7 +33,12 @@ from .views import (
     session_detail_view,
     session_list_view,
     session_update_view,
+    weekly_assignment_api,
+    auto_assignment_api,
+    apply_assignment_api,
+    manual_assignment_api,
 )
+from .views_assignment import assignment_week_view
 
 
 urlpatterns = [
@@ -62,8 +69,17 @@ urlpatterns = [
     path("infrastructure/rooms/add/", room_create_view, name="room_add"),
     path("infrastructure/rooms/<int:pk>/edit/", room_update_view, name="room_edit"),
     path("infrastructure/rooms/<int:pk>/delete/", room_delete_view, name="room_delete"),
+    # Alias legacy route to nueva vista semanal
+    path("infrastructure/rooms/schedule/", assignment_week_view, name="room_schedule_legacy"),
+    path("infrastructure/rooms/auto-assign/", room_auto_assign_view, name="room_auto_assign"),
+    path("asignacion/api/semana/", weekly_assignment_api, name="assignment_week_api"),
+    path("asignacion/api/auto/", auto_assignment_api, name="assignment_auto_api"),
+    path("asignacion/api/aplicar/", apply_assignment_api, name="assignment_apply_api"),
+    path("asignacion/api/manual/", manual_assignment_api, name="assignment_manual_api"),
     path("infrastructure/rooms/blocks/", room_block_list, name="room_block_list"),
     path("infrastructure/rooms/blocks/add/", room_block_add, name="room_block_add"),
     path("infrastructure/rooms/blocks/<int:pk>/edit/", room_block_edit, name="room_block_edit"),
     path("infrastructure/rooms/blocks/<int:pk>/delete/", room_block_delete, name="room_block_delete"),
+    path("asignacion/semana/", assignment_week_view, name="assignment_week_view"),
 ]
+
